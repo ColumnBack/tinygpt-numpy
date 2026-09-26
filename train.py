@@ -1,20 +1,20 @@
 """
 TinyGPT training
 
-학습 문장으로 TinyGPT 를 학습하고 model.npz 에 저장한다.
+Trains TinyGPT on the training sentences and saves it to model.npz.
 
-- 매 epoch 끝마다 model.npz 에 저장 (컴퓨터를 껐다 켜도 남음)
-- Ctrl+C 로 중단하면 진행 중인 step 까지 반영해서 저장
-- 다시 실행하면 저장된 epoch 다음부터 이어서 학습
-- 학습 문장이나 모델 구조가 바뀌면 처음부터 다시 학습
+- Saves to model.npz after every epoch (survives a reboot)
+- Ctrl+C saves the weights up to the current step
+- Re-running resumes from the epoch after the saved one
+- Retrains from scratch if the sentences or architecture change
 
 Usage:
 
     python train.py
-    python train.py --epochs 500     # 저장된 모델을 500 epoch 까지 이어서 학습
-    python train.py --retrain        # 처음부터 다시 학습
+    python train.py --epochs 500     # continue the saved model up to 500 epochs
+    python train.py --retrain        # start over from scratch
 
-문장 생성(추론)은 generate.py
+Sentence generation (inference): generate.py
 """
 
 import argparse
@@ -51,12 +51,12 @@ def train(
 ):
 
     # ---------------------------------------------------------------
-    # state_path 가 주어지면 매 epoch 끝마다 학습 상태를 저장한다.
+    # If state_path is given, the training state is saved after every epoch.
     #
-    # Ctrl+C 를 누르면 진행 중인 step 까지만 마치고 저장한 뒤 멈춘다.
-    # (한 번 더 누르면 강제 종료. 이때도 직전 epoch 상태는 남아 있다.)
+    # Ctrl+C finishes the current step, saves, and stops.
+    # (Press it again to force quit; the last epoch's state is still kept.)
     #
-    # 학습을 끝까지 마치면 True, 중단되면 False 를 돌려준다.
+    # Returns True if training finished, False if it was interrupted.
     # ---------------------------------------------------------------
 
     # Save the model parameters every checkpoint_every epochs when a
@@ -94,8 +94,8 @@ def train(
         stop["requested"] = True
 
         print(
-            "\n중단 요청: 현재 step 을 마치고 저장합니다. "
-            "(강제 종료: Ctrl+C 한 번 더)"
+            "\nStop requested: finishing the current step and saving. "
+            "(Force quit: press Ctrl+C again)"
         )
 
     previous_handler = signal.signal(
@@ -167,9 +167,9 @@ def train(
             # --------------------------------------------------------
             # Interrupted in the middle of this epoch
             #
-            # 가중치는 마지막 step 까지 반영된 상태로 저장하고,
-            # epoch 는 직전까지만 완료로 기록한다.
-            # (다시 실행하면 이 epoch 부터 이어서 학습)
+            # Save the weights including the last step,
+            # but record only the previous epoch as completed.
+            # (the next run resumes from this epoch)
             # --------------------------------------------------------
 
             if stop["requested"]:
@@ -185,8 +185,8 @@ def train(
                     )
 
                     print(
-                        f"epoch {epoch} 진행 중 중단 -> "
-                        f"{Path(state_path).name} 에 저장했습니다."
+                        f"Interrupted during epoch {epoch} -> "
+                        f"saved to {Path(state_path).name}."
                     )
 
                 return False
@@ -270,13 +270,13 @@ if __name__ == "__main__":
         "--epochs",
         type=int,
         default=700,
-        help="목표 epoch 수 (저장된 모델이 이보다 적게 학습됐으면 이어서 학습)"
+        help="target number of epochs (continues if the saved model has fewer)"
     )
 
     parser.add_argument(
         "--retrain",
         action="store_true",
-        help="저장된 모델을 무시하고 처음부터 다시 학습"
+        help="ignore the saved model and train from scratch"
     )
 
     args = parser.parse_args()
@@ -407,7 +407,7 @@ if __name__ == "__main__":
     # ================================================================
     # 4. Load saved state
     #
-    # model.npz 가 있고 학습 문장/모델 구조가 같으면 불러온다.
+    # Load model.npz if it exists and matches the sentences / architecture.
     # ================================================================
 
     state_path = Path(__file__).with_name(
@@ -430,33 +430,33 @@ if __name__ == "__main__":
             done_epoch = loaded
 
             print(
-                f"저장된 모델을 불러왔습니다: {state_path.name} "
-                f"({done_epoch} epoch 학습됨)"
+                f"Loaded saved model: {state_path.name} "
+                f"({done_epoch} epochs trained)"
             )
 
         elif state_path.exists():
 
             print(
-                "학습 문장 또는 모델 구조가 바뀌어 처음부터 학습합니다."
+                "Training sentences or architecture changed; training from scratch."
             )
 
     # ================================================================
-    # 5. Train (처음부터 또는 이어서)
+    # 5. Train (from scratch or resume)
     # ================================================================
 
     if done_epoch >= args.epochs:
 
         print(
-            f"이미 {done_epoch} epoch 까지 학습되어 있습니다. "
-            "더 학습하려면 --epochs 를 늘리고, "
-            "처음부터 하려면 --retrain 을 붙이세요."
+            f"Already trained for {done_epoch} epochs. "
+            "To train more, raise --epochs; "
+            "to start over, add --retrain."
         )
 
     else:
 
         print(
-            f"학습: epoch {done_epoch + 1} -> {args.epochs} "
-            "(Ctrl+C 로 중단해도 가중치는 저장됩니다)"
+            f"Training: epoch {done_epoch + 1} -> {args.epochs} "
+            "(weights are saved even if you press Ctrl+C)"
         )
 
         completed = train(
@@ -489,15 +489,15 @@ if __name__ == "__main__":
         if not completed:
 
             print(
-                "학습이 중단되었습니다. "
-                "다시 실행하면 이어서 학습합니다."
+                "Training was interrupted. "
+                "Run again to resume."
             )
 
     print()
     print(
-        f"저장 위치: {state_path}"
+        f"Saved to: {state_path}"
     )
 
     print(
-        "문장 생성: python generate.py"
+        "Generate sentences: python generate.py"
     )
