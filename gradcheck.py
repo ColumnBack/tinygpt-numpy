@@ -1,32 +1,32 @@
 """
 Numerical gradient check for tinygpt.py
 
-tinygpt.py 의 손으로 유도한 backward 수식이 맞는지
-중앙차분(central difference) numerical gradient 와 비교해서 검증한다.
+Checks that the hand-derived backward formulas in tinygpt.py are correct
+by comparing them against a central-difference numerical gradient.
 
     numerical:  dL/dθ_i ≈ [ L(θ + h e_i) - L(θ - h e_i) ] / (2h)
 
     rel_error = ||G_analytic - G_numerical|| / (||G_analytic|| + ||G_numerical||)
 
-검사 단위:
+Checks:
 
     1. GELU            gelu_grad
     2. LayerNorm       layernorm_backward        (R, gamma, beta)
     3. Attention head  one_head_backward         (X, WQ, WK, WV)
     4. Block           block_backward            (X + block parameters)
-    5. Full model      loss_and_backward         (all parameters, weight tying 포함)
+    5. Full model      loss_and_backward         (all parameters, including weight tying)
 
-부품(1~4) 검사는 임의의 상수 행렬 C 로 스칼라 loss 를 만든다.
+Component checks (1-4) build a scalar loss with a random constant matrix C.
 
     L = sum(out ⊙ C)   ->   dL/d(out) = C
 
-결과는 콘솔에 출력하고, 차트가 들어간 HTML 리포트
-(gradcheck_report.html)를 만들어 브라우저로 연다.
+Results are printed to the console, and an HTML report with charts
+(gradcheck_report.html) is written and opened in the browser.
 
 Usage:
 
     python gradcheck.py
-    python gradcheck.py --init original     # tinygpt 기본 초기화 그대로
+    python gradcheck.py --init original     # keep tinygpt's default initialization
     python gradcheck.py --h 1e-6 --no-open
 """
 
@@ -45,11 +45,11 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from tinygpt import TinyGPT
 
 
-# rel_error 판정 기준
+# rel_error thresholds
 #
-#   < 1e-6          PASS  (float64 중앙차분이면 보통 1e-8 ~ 1e-10)
-#   1e-6 ~ 1e-4     WARN  (수치 잡음일 수도, 미묘한 버그일 수도)
-#   >= 1e-4         FAIL  (수식이 틀렸을 가능성이 높음)
+#   < 1e-6          PASS  (float64 central differences usually give 1e-8 ~ 1e-10)
+#   1e-6 ~ 1e-4     WARN  (could be numerical noise or a subtle bug)
+#   >= 1e-4         FAIL  (the formula is most likely wrong)
 
 PASS_TOL = 1e-6
 FAIL_TOL = 1e-4
@@ -61,8 +61,8 @@ FAIL_TOL = 1e-4
 
 def numerical_grad(f, x, h, indices=None):
 
-    # f : 인자 없는 함수, 현재 x 값으로 스칼라 loss 를 돌려준다.
-    # x : in-place 로 흔드는 배열 (model.p 의 배열이면 모델에 바로 반영된다)
+    # f : no-argument function returning the scalar loss at the current x
+    # x : array perturbed in place (if it is in model.p, the model sees it directly)
 
     g = np.zeros_like(x)
 
@@ -150,8 +150,8 @@ def make_model(init, seed):
     rng = np.random.default_rng(seed + 1)
 
     # ----------------------------------------------------------------
-    # gamma = 1, beta = 0, b = 0 이면 "gamma 를 곱하는 걸 빠뜨린" 류의
-    # 버그가 가려진다. 그래서 일부러 기본값에서 벗어나게 한다.
+    # With gamma = 1, beta = 0, b = 0, bugs like "forgot to multiply by gamma"
+    # stay hidden, so move them away from their defaults on purpose.
     # ----------------------------------------------------------------
 
     for k in model.p:
@@ -159,9 +159,9 @@ def make_model(init, seed):
             model.p[k] = model.p[k] + rng.normal(0.0, 0.3, model.p[k].shape)
 
     # ----------------------------------------------------------------
-    # 기본 초기화(E, P 표준편차 0.02)에서는 layer 0 의 WQ/WK gradient 가
-    # 거의 0 이라, 중앙차분의 반올림 잡음이 상대적으로 커져 WARN 이 뜬다.
-    # "scaled" 는 E, P 를 표준편차 1 로 키워 수식 자체만 깨끗하게 본다.
+    # With the default init (E, P std 0.02) the layer-0 WQ/WK gradients are
+    # nearly zero, so central-difference round-off noise dominates and WARNs appear.
+    # "scaled" raises E, P to std 1 so only the formulas themselves are tested.
     # ----------------------------------------------------------------
 
     if init == "scaled":
@@ -255,7 +255,7 @@ def check_block(model, rng, h, n=0):
         Result("Block", "X", GX, numerical_grad(loss, X, h))
     ]
 
-    # block_backward 가 돌려준 parameter 는 model.p 를 직접 흔들어 검사
+    # parameters returned by block_backward are checked by perturbing model.p directly
     for k in grads:
         results.append(
             Result("Block", k, grads[k], numerical_grad(loss, model.p[k], h))
@@ -268,7 +268,7 @@ def check_block(model, rng, h, n=0):
 # 5. Full model check
 # ====================================================================
 
-# 같은 token 3 이 두 번 나오게 해서 np.add.at 누적도 검사한다.
+# token 3 appears twice so the np.add.at accumulation is tested too.
 INPUT_IDS = [0, 3, 5, 3, 7]
 TARGET_IDS = [3, 5, 3, 7, 1]
 
@@ -302,10 +302,10 @@ def check_full_model(model, h):
 # ====================================================================
 # h sweep
 #
-# h 가 너무 크면 truncation error (O(h^2)),
-# 너무 작으면 floating point 반올림 error (O(eps/h)) 가 커진다.
-# 수식이 맞다면 error 가 V 자 모양을 그리고 바닥이 1e-8 아래로 내려간다.
-# 수식이 틀렸다면 h 를 아무리 바꿔도 바닥이 높게 유지된다.
+# If h is too large, truncation error (O(h^2)) grows;
+# if too small, floating-point round-off error (O(eps/h)) grows.
+# With correct formulas the error forms a V whose bottom goes below 1e-8.
+# With wrong formulas the floor stays high no matter what h is.
 # ====================================================================
 
 SWEEP_PARAMS = ["E", "WQ_0_0", "gamma1_0", "W1_1"]
@@ -340,7 +340,7 @@ def h_sweep(model, rng, n_elements=16):
 
 
 # ====================================================================
-# HTML report (inline SVG, 외부 라이브러리 없음)
+# HTML report (inline SVG, no external libraries)
 # ====================================================================
 
 def esc(s):
@@ -357,7 +357,7 @@ def log_ticks(lo, hi, step):
 
 def svg_dot_plot(results, h):
 
-    # 행마다 rel_error 하나를 log 축 위의 점으로 찍는다.
+    # One dot per row: its rel_error on a log axis.
 
     left, right, top, row = 230, 24, 44, 20
     W = 820
@@ -370,10 +370,10 @@ def svg_dot_plot(results, h):
 
     out = [
         f'<svg viewBox="0 0 {W} {H}" role="img" '
-        f'aria-label="검사 항목별 relative error">'
+        f'aria-label="relative error per check">'
     ]
 
-    # 판정 구간 배경
+    # verdict band backgrounds
     out.append(
         f'<rect x="{X(PASS_TOL):.1f}" y="{top - 8}" '
         f'width="{X(FAIL_TOL) - X(PASS_TOL):.1f}" '
@@ -397,8 +397,8 @@ def svg_dot_plot(results, h):
             f'text-anchor="middle">1e{t}</text>'
         )
 
-    # 판정 기준선
-    for tol, label in ((PASS_TOL, "PASS 기준 1e-6"), (FAIL_TOL, "FAIL 기준 1e-4")):
+    # threshold lines
+    for tol, label in ((PASS_TOL, "PASS limit 1e-6"), (FAIL_TOL, "FAIL limit 1e-4")):
         x = X(tol)
         out.append(
             f'<line x1="{x:.1f}" x2="{x:.1f}" y1="{top - 14}" '
@@ -449,8 +449,8 @@ def svg_dot_plot(results, h):
 
 def svg_scatter(results):
 
-    # 모든 원소에 대해 x = numerical, y = analytic.
-    # 수식이 맞으면 모든 점이 y = x 대각선 위에 놓인다.
+    # For every element: x = numerical, y = analytic.
+    # With correct formulas every point lies on the y = x diagonal.
 
     W = H = 460
     pad_l, pad_b, pad_t, pad_r = 64, 50, 16, 16
@@ -468,7 +468,7 @@ def svg_scatter(results):
 
     out = [
         f'<svg viewBox="0 0 {W} {H}" role="img" '
-        f'aria-label="analytic vs numerical gradient 산점도">'
+        f'aria-label="analytic vs numerical gradient scatter plot">'
     ]
 
     for t in np.linspace(-m, m, 5):
@@ -547,7 +547,7 @@ def svg_h_sweep(curves, h_used):
 
     out = [
         f'<svg viewBox="0 0 {W} {H}" role="img" '
-        f'aria-label="h 에 따른 relative error">'
+        f'aria-label="relative error vs h">'
     ]
 
     for t in log_ticks(ylo, yhi, 2):
@@ -567,14 +567,14 @@ def svg_h_sweep(curves, h_used):
             f'text-anchor="middle">1e{t}</text>'
         )
 
-    # PASS 기준선, 사용한 h
+    # PASS threshold line and the h in use
     y = Y(PASS_TOL)
     out.append(
         f'<line x1="{pad_l}" x2="{W - pad_r}" y1="{y:.1f}" y2="{y:.1f}" '
         f'class="threshold"/>'
     )
     out.append(
-        f'<text x="{W - pad_r + 6}" y="{y + 4:.1f}" class="tick">PASS 기준</text>'
+        f'<text x="{W - pad_r + 6}" y="{y + 4:.1f}" class="tick">PASS limit</text>'
     )
 
     x = X(np.log10(h_used))
@@ -583,10 +583,10 @@ def svg_h_sweep(curves, h_used):
         f'class="threshold"/>'
     )
     out.append(
-        f'<text x="{x + 4:.1f}" y="{pad_t + 12}" class="tick">사용한 h</text>'
+        f'<text x="{x + 4:.1f}" y="{pad_t + 12}" class="tick">h used</text>'
     )
 
-    # direct label 이 겹치지 않게 끝점 y 를 벌려 놓는다
+    # spread the end-label y positions so direct labels do not overlap
     ends = sorted(
         ((Y(errs[0]), k) for k, errs in curves.items()),
         key=lambda e: e[0]
@@ -620,7 +620,7 @@ def svg_h_sweep(curves, h_used):
 
     out.append(
         f'<text x="{(pad_l + W - pad_r) / 2}" y="{H - 8}" class="axis-label" '
-        f'text-anchor="middle">h (step size) — 오른쪽으로 갈수록 작아짐</text>'
+        f'text-anchor="middle">h (step size) — smaller to the right</text>'
     )
 
     out.append("</svg>")
@@ -645,9 +645,9 @@ def results_table(results):
         )
 
     return (
-        "<table><thead><tr><th>그룹</th><th>대상</th><th>shape</th>"
+        "<table><thead><tr><th>Group</th><th>Target</th><th>shape</th>"
         "<th class='num'>||analytic||</th><th class='num'>rel error</th>"
-        "<th class='num'>max |diff|</th><th>판정</th></tr></thead>"
+        "<th class='num'>max |diff|</th><th>Verdict</th></tr></thead>"
         f"<tbody>{''.join(rows)}</tbody></table>"
     )
 
@@ -754,12 +754,12 @@ def build_report(results, curves, args, elapsed):
     n_elems = sum(r.analytic.size for r in results)
 
     if n_fail == 0 and n_warn == 0:
-        verdict = ("pass", "✓ 모든 backward 수식이 numerical gradient 와 일치합니다.")
+        verdict = ("pass", "✓ All backward formulas match the numerical gradient.")
     elif n_fail == 0:
-        verdict = ("pass", "! FAIL 은 없지만 WARN 항목이 있습니다. "
-                           "gradient 크기가 매우 작은 항목이면 수치 잡음일 수 있습니다.")
+        verdict = ("pass", "! No FAILs, but some checks are WARN. "
+                           "If those gradients are very small, it may be numerical noise.")
     else:
-        verdict = ("fail", f"✕ {n_fail}개 항목이 일치하지 않습니다. 표에서 FAIL 항목을 확인하세요.")
+        verdict = ("fail", f"✕ {n_fail} checks do not match. See the FAIL rows in the table.")
 
     full = [r for r in results if r.group == "Full model"]
 
@@ -769,7 +769,7 @@ def build_report(results, curves, args, elapsed):
     )
 
     return f"""<!doctype html>
-<html lang="ko">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -780,43 +780,43 @@ def build_report(results, curves, args, elapsed):
 <main>
 
 <h1>TinyGPT Gradient Check</h1>
-<p class="sub">tinygpt.py 의 analytic gradient 를 중앙차분 numerical gradient 와 비교 ·
+<p class="sub">Analytic gradients in tinygpt.py vs. central-difference numerical gradients ·
 h = {args.h:g} · init = {esc(args.init)} · seed = {args.seed} ·
 {time.strftime('%Y-%m-%d %H:%M')} · {elapsed:.1f}s</p>
 
 <div class="tiles">
-  <div class="tile"><div class="k">검사 항목</div><div class="v">{len(results)}</div></div>
-  <div class="tile"><div class="k">비교한 원소 수</div><div class="v">{n_elems:,}</div></div>
+  <div class="tile"><div class="k">Checks</div><div class="v">{len(results)}</div></div>
+  <div class="tile"><div class="k">Elements compared</div><div class="v">{n_elems:,}</div></div>
   <div class="tile"><div class="k">PASS / WARN / FAIL</div><div class="v">{n_pass} / {n_warn} / {n_fail}</div></div>
-  <div class="tile"><div class="k">최대 rel error ({esc(worst.name)})</div><div class="v">{fmt(worst.rel)}</div></div>
+  <div class="tile"><div class="k">Worst rel error ({esc(worst.name)})</div><div class="v">{fmt(worst.rel)}</div></div>
 </div>
 <p class="verdict {verdict[0]}">{verdict[1]}</p>
 
 <section>
-<h2>항목별 relative error</h2>
+<h2>Relative error per check</h2>
 <p class="desc">rel = ‖G<sub>analytic</sub> − G<sub>numerical</sub>‖ / (‖G<sub>analytic</sub>‖ + ‖G<sub>numerical</sub>‖).
-점이 왼쪽일수록 정확합니다. 노란 구간은 WARN, 빨간 구간은 FAIL. 점에 마우스를 올리면 상세 값이 보입니다.</p>
+Further left is more accurate. The yellow band is WARN, the red band is FAIL. Hover a dot for details.</p>
 {svg_dot_plot(results, args.h)}
 </section>
 
 <section>
-<h2>Analytic vs numerical (Full model, 모든 원소)</h2>
-<p class="desc">점 하나가 parameter 원소 하나입니다. 수식이 맞으면 모든 점이 점선 y = x 위에 놓입니다.
-대각선에서 벗어난 점은 빨간색으로 표시됩니다.</p>
+<h2>Analytic vs numerical (Full model, every element)</h2>
+<p class="desc">Each dot is one parameter element. With correct formulas every dot lies on the dashed y = x line.
+Dots off the diagonal are shown in red.</p>
 {svg_scatter(full)}
 </section>
 
 <section>
-<h2>h 에 따른 error (Full model)</h2>
-<p class="desc">h 가 크면 truncation error(∝h²), 작으면 반올림 error(∝ε/h)가 커져 V 자가 됩니다.
-수식이 맞으면 바닥이 PASS 기준 아래로 충분히 내려가고, 틀렸다면 h 와 무관하게 높게 머뭅니다.
-각 곡선은 parameter 별 무작위 원소 16개 기준입니다.</p>
+<h2>Error vs h (Full model)</h2>
+<p class="desc">Large h increases truncation error (∝h²) and small h increases round-off error (∝ε/h), giving a V shape.
+With correct formulas the bottom drops well below the PASS limit; with wrong ones it stays high regardless of h.
+Each curve uses 16 random elements of that parameter.</p>
 <div class="legend">{legend}</div>
 {svg_h_sweep(curves, args.h)}
 </section>
 
 <section>
-<h2>상세 결과</h2>
+<h2>Detailed results</h2>
 {results_table(results)}
 </section>
 
@@ -835,14 +835,14 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[1])
 
     parser.add_argument("--h", type=float, default=1e-5,
-                        help="중앙차분 step size (default 1e-5)")
+                        help="central-difference step size (default 1e-5)")
     parser.add_argument("--init", choices=["scaled", "original"], default="scaled",
-                        help="scaled: E, P 를 std 1 로 키움 / original: tinygpt 기본 초기화")
+                        help="scaled: raise E, P to std 1 / original: tinygpt default init")
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--out", type=Path,
                         default=Path(__file__).with_name("gradcheck_report.html"))
     parser.add_argument("--no-open", action="store_true",
-                        help="리포트를 브라우저로 열지 않음")
+                        help="do not open the report in the browser")
 
     args = parser.parse_args()
 
