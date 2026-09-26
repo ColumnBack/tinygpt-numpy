@@ -1,25 +1,25 @@
 """
 TensorFlow gradient check for tinygpt.py
 
-tinygpt.py 의 손으로 유도한 backward 를 TensorFlow 자동미분(GradientTape)
-결과와 비교한다.
+Compares the hand-derived backward pass in tinygpt.py against
+TensorFlow autodiff (GradientTape).
 
-    NumPy (tinygpt.py)                  TensorFlow (이 파일)
+    NumPy (tinygpt.py)                  TensorFlow (this file)
     ------------------                  --------------------
-    forward  : 직접 구현                 forward  : TF 연산으로 독립 구현
-    backward : 손으로 유도한 수식         backward : tape.gradient (자동미분)
+    forward  : hand-written              forward  : independent TF implementation
+    backward : hand-derived formulas     backward : tape.gradient (autodiff)
 
-TF 쪽은 tinygpt.py 의 코드를 쓰지 않고 TF 내장 연산을 쓴다.
+The TF side does not reuse tinygpt.py code; it uses built-in TF ops.
 
-    GELU      tf.nn.gelu(approximate=True)     (tanh 근사, tinygpt 와 동일 정의)
+    GELU      tf.nn.gelu(approximate=True)     (tanh approximation, same definition as tinygpt)
     softmax   tf.nn.softmax
     loss      tf.nn.sparse_softmax_cross_entropy_with_logits
     embedding tf.gather
 
-numerical gradient 와 달리 자동미분은 h 로 인한 오차가 없으므로
-float64 에서 수식이 맞다면 rel error 가 1e-12 근처까지 내려간다.
+Unlike a numerical gradient, autodiff has no step-size error, so if the
+formulas are right the rel error goes down to ~1e-12 in float64.
 
-검사 단위:
+Checks:
 
     1. GELU            gelu_grad
     2. LayerNorm       layernorm_backward        (R, gamma, beta)
@@ -30,7 +30,7 @@ float64 에서 수식이 맞다면 rel error 가 1e-12 근처까지 내려간다
 Usage:
 
     .venv-tf\\Scripts\\python.exe tf_gradcheck.py
-    .venv-tf\\Scripts\\python.exe tf_gradcheck.py --model model.npz     # 학습된 가중치로 검사
+    .venv-tf\\Scripts\\python.exe tf_gradcheck.py --model model.npz     # check with the trained weights
 """
 
 import argparse
@@ -48,11 +48,11 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from tinygpt import TinyGPT, build_dataset, load_model
 
 
-# 둘 다 float64 정확한 미분이므로 기준을 엄격하게 둔다.
+# Both sides are exact float64 derivatives, so the threshold is strict.
 #
-# tf.nn.gelu 는 tinygpt.gelu 와 forward 값부터 ~1e-10 정도 차이가 난다
-# (TF 내부 구현 차이). 같은 식을 TF 로 직접 쓰면 전체가 ~1e-15 로 일치하므로
-# 수식 오류가 아니다. 그래서 PASS 기준을 1e-8 로 둔다.
+# tf.nn.gelu already differs from tinygpt.gelu by ~1e-10 in the forward pass
+# (TF implementation detail). Writing the same formula in TF by hand makes
+# everything agree to ~1e-15, so it is not a formula error. Hence PASS < 1e-8.
 PASS_TOL = 1e-8
 FAIL_TOL = 1e-6
 
@@ -107,7 +107,7 @@ def compare(group, name, numpy_value, tf_value):
 
 
 # ====================================================================
-# TensorFlow forward (tinygpt.py 와 독립적으로 구현)
+# TensorFlow forward (implemented independently of tinygpt.py)
 # ====================================================================
 
 def tf_layernorm(R, gamma, beta, eps):
@@ -127,7 +127,7 @@ def tf_one_head(X, WQ, WK, WV, dh):
 
     S = Q @ tf.transpose(K) / tf.sqrt(tf.cast(dh, DTYPE))
 
-    # 하삼각(i >= j)만 허용
+    # allow only the lower triangle (i >= j)
     allowed = tf.linalg.band_part(tf.ones((T, T), dtype=tf.bool), -1, 0)
 
     S = tf.where(allowed, S, tf.constant(-1e9, DTYPE))
@@ -335,7 +335,7 @@ def main():
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument(
         "--model", type=Path, default=None,
-        help="train.py 가 저장한 model.npz 를 불러와 학습된 가중치로 검사"
+        help="load the model.npz saved by train.py and check with the trained weights"
     )
 
     args = parser.parse_args()
@@ -344,7 +344,7 @@ def main():
 
     if args.model is not None:
 
-        # 모델 구조와 학습 문장을 model.npz 에서 복원
+        # restore the architecture and training sentences from model.npz
         model, token_to_id, _, sentences, epoch = load_model(args.model)
         _, _, data = build_dataset(sentences)
 
@@ -352,7 +352,7 @@ def main():
 
     else:
 
-        # 작은 테스트용 설정
+        # small test configuration
         token_to_id, _, data = build_dataset(SENTENCES)
 
         model = TinyGPT(
@@ -365,7 +365,7 @@ def main():
             seed=42
         )
 
-        # gamma = 1, beta = 0, b = 0 이면 가려지는 버그가 있어 일부러 흔든다.
+        # gamma = 1, beta = 0, b = 0 can hide bugs, so perturb them on purpose.
         for k in model.p:
             if k.startswith(("gamma", "beta", "b1", "b2")):
                 model.p[k] = model.p[k] + rng.normal(0.0, 0.3, model.p[k].shape)
@@ -379,7 +379,7 @@ def main():
     for n in range(model.N):
         check_block(model, rng, n)
 
-    # 학습 문장 하나 + 같은 token 이 반복되는 문장(np.add.at 누적 검사)
+    # one training sentence + a sequence with repeated tokens (tests np.add.at accumulation)
     first = data[0]
     repeated = (
         [first[0]] + [first[1], first[2]] * model.max_context
