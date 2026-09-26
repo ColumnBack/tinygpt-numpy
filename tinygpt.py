@@ -222,14 +222,14 @@ class TinyGPT:
         #
         # W_LM = E^T
         #
-        # 따라서 W_LM을 별도 parameter로 저장하지 않는다.
+        # so W_LM is not stored as a separate parameter.
         # ============================================================
 
 
     # ================================================================
     # GELU
     #
-    # 여기서는 NumPy만 사용하기 위해 tanh approximation을 사용한다.
+    # The tanh approximation is used here to stay NumPy-only.
     #
     # GELU(x)
     # = 1/2 x [1 + tanh(c(x + 0.044715 x^3))]
@@ -1889,18 +1889,18 @@ def decode(
 # ====================================================================
 # Training state (save / load)
 #
-# 학습 도중 중단되어도 그때까지의 가중치가 남고,
-# 다시 실행하면 이어서 학습할 수 있도록
-# parameter + Adam 상태 + 완료한 epoch 수를 한 파일에 저장한다.
+# Parameters + Adam state + number of completed epochs are saved
+# in one file, so the weights survive an interrupted run
+# and training can resume on the next run.
 #
-# 파일 key:
+# File keys:
 #
 #   p.<name>    model parameter
 #   m.<name>    Adam first moment
 #   v.<name>    Adam second moment
 #   adam_t      Adam step count
-#   epoch       마지막으로 끝까지 마친 epoch
-#   sentences   학습 문장 (문장이 바뀌면 새로 학습)
+#   epoch       last fully completed epoch
+#   sentences   training sentences (retrain if they change)
 # ====================================================================
 
 def save_state(
@@ -1922,8 +1922,8 @@ def save_state(
         arrays[f"v.{k}"] = optimizer.v[k]
 
     # ---------------------------------------------------------------
-    # 저장 도중 프로세스가 죽어도 기존 파일이 깨지지 않도록
-    # 임시 파일에 먼저 쓴 뒤 한 번에 교체한다.
+    # Write to a temp file first and swap it in, so the existing
+    # file is never corrupted if the process dies mid-save.
     # ---------------------------------------------------------------
 
     tmp_path = path.with_suffix(".tmp")
@@ -1939,8 +1939,8 @@ def save_state(
         )
 
     # ---------------------------------------------------------------
-    # Windows 에서는 백신/검색 색인이 방금 쓴 파일을 잠깐 잡고 있어
-    # 교체가 PermissionError 로 실패할 수 있다. 잠시 후 재시도한다.
+    # On Windows, antivirus / search indexing can briefly lock a newly
+    # written file, making the swap fail with PermissionError. Retry.
     # ---------------------------------------------------------------
 
     for attempt in range(20):
@@ -1959,8 +1959,8 @@ def save_state(
             time.sleep(0.1 * (attempt + 1))
 
     raise PermissionError(
-        f"{path} 를 저장하지 못했습니다. "
-        f"(최신 가중치는 {tmp_path} 에 남아 있습니다)"
+        f"Could not save {path}. "
+        f"(the latest weights are in {tmp_path})"
     )
 
 
@@ -1972,10 +1972,10 @@ def load_state(
 ):
 
     # ---------------------------------------------------------------
-    # 저장된 상태를 model / optimizer 에 불러오고
-    # 완료한 epoch 수를 돌려준다.
+    # Load the saved state into model / optimizer and
+    # return the number of completed epochs.
     #
-    # 파일이 없거나, 학습 문장 또는 모델 구조가 바뀌었으면 None.
+    # None if the file is missing or the sentences / architecture changed.
     # ---------------------------------------------------------------
 
     path = Path(path)
@@ -2016,17 +2016,17 @@ def load_state(
 # ====================================================================
 # Load model for inference
 #
-# model.npz 하나만으로 모델을 복원한다.
+# Rebuild the model from model.npz alone.
 #
-#   vocabulary : 저장된 학습 문장 -> build_dataset (학습 때와 동일한 결과)
-#   구조       : parameter shape 에서 복원
+#   vocabulary   : saved training sentences -> build_dataset (same as in training)
+#   architecture : inferred from the parameter shapes
 #
 #     vocab_size  = E.shape[0]
 #     d_model     = E.shape[1]
 #     max_context = P.shape[0]
-#     n_heads     = WQ_0_* 개수
+#     n_heads     = number of WQ_0_* entries
 #     d_ff        = W1_0.shape[1]
-#     n_layers    = WO_* 개수
+#     n_layers    = number of WO_* entries
 # ====================================================================
 
 def load_model(
