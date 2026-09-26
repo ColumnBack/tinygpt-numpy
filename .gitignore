@@ -1,0 +1,15 @@
+# Python
+__pycache__/
+*.pyc
+
+# Virtual environments
+.venv*/
+venv/
+
+# Training artifacts (train.py 로 다시 생성됨)
+checkpoints/
+checkpoints_v2/
+*.tmp
+
+# gradcheck.py 가 생성하는 리포트
+gradcheck_report.html
