@@ -1,8 +1,17 @@
-# TinyGPT — a GPT built from scratch with NumPy
+# TinyGPT — A GPT implemented with NumPy
 
-A GPT (decoder-only Transformer) implemented with **NumPy only** — no PyTorch, no TensorFlow.
-Not just the forward pass: **every backward (backpropagation) formula was derived by hand and coded directly**,
-then verified two independent ways — against a **numerical gradient** and against **TensorFlow autodiff**.
+A GPT (decoder-only Transformer) implemented using **NumPy only** — without PyTorch or TensorFlow for the model implementation.
+
+This project focuses on understanding the mathematical structure of a GPT and **verifying that the implementation faithfully follows the corresponding mathematical derivations**.
+
+The mathematical derivations were **worked through by hand and studied step by step** (See [`GPT math.pdf`](GPT%20math.pdf)). Based on these mathematical formulations, **ChatGPT was used to implement the mathematics in NumPy code**.
+
+**The resulting code was then carefully compared against the handwritten mathematical derivations to verify that the implementation correctly reflected the intended mathematics.** This verification included tensor dimensions, forward computations, backward propagation, intermediate gradients, and overall gradient flow.
+
+The implementation was independently validated in two ways. The gradient-checking scripts were also developed with **ChatGPT**:
+
+- **Numerical gradient checking** using central finite differences (`gradcheck.py`)
+- **TensorFlow automatic differentiation** as an independent reference (`tf_gradcheck.py`)
 
 - Handwritten derivation notes: [`GPT math.pdf`](GPT%20math.pdf) (22 pages)
 - Trained weights included: run `python generate.py` right after cloning
@@ -100,7 +109,9 @@ $$Q = XW_Q,\quad K = XW_K,\quad V = XW_V,\qquad A = \mathrm{softmax}\!\left(\fra
 
 ## Backpropagation
 
-All gradients were derived by hand and implemented without autodiff. The derivations are in [`GPT math.pdf`](GPT%20math.pdf).
+The backward formulas were **worked through by hand and studied step by step**. Based on these derivations, **ChatGPT was used to implement the backward pass in NumPy**.
+
+**The resulting implementation was then carefully compared against the mathematical derivations to verify that it correctly reflected the intended mathematics.** The derivations are in [`GPT math.pdf`](GPT%20math.pdf).
 
 | Pages | Contents |
 |---|---|
@@ -121,13 +132,13 @@ $$G_R = \frac{1}{D} \odot \left[G_{\hat R} - \mathrm{mean}(G_{\hat R}) - \hat R 
 
 ## Verifying the formulas
 
-The hand-derived backward pass is checked two independent ways.
+The mathematical derivations and their NumPy implementation are checked two independent ways.
 Components (GELU, LayerNorm, attention head, block) are checked first, then every parameter of the full model.
 LayerNorm γ, β and the biases are deliberately perturbed away from their defaults (1 and 0) so that bugs like a missing γ cannot hide.
 
 ### ① Numerical gradient — `gradcheck.py`
 
-Compares against the central difference $\frac{L(\theta+h) - L(\theta-h)}{2h}$.
+The numerical gradient-checking script was developed with **ChatGPT** and compares against the central difference $\frac{L(\theta+h) - L(\theta-h)}{2h}$.
 
 ```bash
 python gradcheck.py              # print results + open an HTML report with charts
@@ -148,7 +159,7 @@ The report (`gradcheck_report.html`) shows per-check errors, an analytic-vs-nume
 
 ### ② TensorFlow autodiff — `tf_gradcheck.py`
 
-The same model is re-implemented **independently** with TensorFlow ops
+The TensorFlow gradient-checking script was also developed with **ChatGPT**. The same model is re-implemented **independently** with TensorFlow ops
 (`tf.nn.gelu`, `tf.nn.softmax`, `sparse_softmax_cross_entropy_with_logits`) and compared against `GradientTape`.
 
 ```bash
