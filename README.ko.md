@@ -1,10 +1,10 @@
 # TinyGPT — NumPy로 구현한 GPT
 
+[English](README.md) | **한국어**
+
 > [!IMPORTANT]
 > **📐 [GPT math.pdf](GPT%20math.pdf) — 모든 순전파·역전파 공식을 손으로 유도한 노트 (22쪽)**  
 > NumPy 코드는 이 노트를 바탕으로 구현했고, 한 줄씩 대조해 검증했습니다.
-
-[English](README.md) | **한국어**
 
 [라이브 데모](https://columnback.github.io/tinygpt-numpy/demo.html#ko) | [비주얼 가이드](https://columnback.github.io/tinygpt-numpy/#ko)
 

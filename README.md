@@ -1,10 +1,10 @@
 # TinyGPT — A GPT implemented with NumPy
 
+**English** | [한국어](README.ko.md)
+
 > [!IMPORTANT]
 > **📐 [GPT math.pdf](GPT%20math.pdf) — handwritten derivations of every forward and backward formula (22 pages)**  
 > The NumPy code was implemented from these notes and checked against them line by line.
-
-**English** | [한국어](README.ko.md)
 
 [Live demo](https://columnback.github.io/tinygpt-numpy/demo.html#en) | [Visual guide](https://columnback.github.io/tinygpt-numpy/#en)
 
