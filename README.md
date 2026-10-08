@@ -1,6 +1,6 @@
 # TinyGPT — A GPT implemented with NumPy
 
-**English** | [한국어](README.ko.md) | [Visual guide (HTML)](https://columnback.github.io/tinygpt-numpy/) | [Live demo](https://columnback.github.io/tinygpt-numpy/demo.html)
+**English** | [한국어](README.ko.md) | [Visual guide (HTML)](https://columnback.github.io/tinygpt-numpy/#en) | [Live demo](https://columnback.github.io/tinygpt-numpy/demo.html#en)
 
 A GPT (decoder-only Transformer) implemented using **NumPy only** — without PyTorch or TensorFlow for the model implementation.
 

@@ -1,6 +1,6 @@
 # TinyGPT — NumPy로 구현한 GPT
 
-[English](README.md) | **한국어** | [비주얼 가이드 (HTML)](https://columnback.github.io/tinygpt-numpy/) | [라이브 데모](https://columnback.github.io/tinygpt-numpy/demo.html)
+[English](README.md) | **한국어** | [비주얼 가이드 (HTML)](https://columnback.github.io/tinygpt-numpy/#ko) | [라이브 데모](https://columnback.github.io/tinygpt-numpy/demo.html#ko)
 
 모델 구현에 PyTorch나 TensorFlow를 쓰지 않고 **NumPy만으로** 구현한 GPT(디코더 전용 Transformer)입니다.
 

@@ -7,6 +7,11 @@
       b.setAttribute("aria-pressed", String(b.getAttribute("data-set-lang") === l));
     });
     try { localStorage.setItem("tinygpt-lang", l); } catch (e) {}
+    // keep the language in the address and in links to the other page
+    try { history.replaceState(null, "", "#" + l); } catch (e) {}
+    document.querySelectorAll(".tabs a, a.teaser").forEach(function (a) {
+      a.setAttribute("href", a.getAttribute("href").split("#")[0] + "#" + l);
+    });
   }
   var initial = "en";
   var hash = (location.hash || "").replace("#", "");
