@@ -220,3 +220,9 @@ footer { padding-block: 2rem 0; border-top: 1px solid var(--rule); font-size: va
 .teaser-demo { font-size: 0.85rem; background: var(--code-bg); border-radius: 6px; padding: 0.6rem 0.8rem; line-height: 1.6; }
 .teaser-demo .p { color: var(--accent); }
 .teaser-demo .out { color: var(--pass); }
+
+/* derivation notes call-out in the hero */
+.pdf-btn { display: flex; gap: 0.9rem; align-items: center; justify-self: start; max-width: 100%; text-decoration: none; color: var(--ink); background: var(--back-soft); border: 1px solid var(--back); border-radius: 8px; padding: 0.75rem 1.1rem 0.75rem 0.8rem; font-size: var(--s-sm); line-height: 1.45; }
+.pdf-btn:hover { background: var(--surface); }
+.pdf-btn b { font-size: 1.05rem; color: var(--back); }
+.pdf-ic { flex: none; font-family: var(--f-mono); font-size: 0.7rem; font-weight: 500; color: var(--surface); background: var(--back); border-radius: 4px; padding: 0.55rem 0.45rem; letter-spacing: 0.05em; }
