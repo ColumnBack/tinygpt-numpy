@@ -1,5 +1,7 @@
 # TinyGPT — A GPT implemented with NumPy
 
+**English** | [한국어](README.ko.md) | [Visual guide (HTML)](https://columnback.github.io/tinygpt-numpy/) | [Live demo](https://columnback.github.io/tinygpt-numpy/demo.html)
+
 A GPT (decoder-only Transformer) implemented using **NumPy only** — without PyTorch or TensorFlow for the model implementation.
 
 This project focuses on understanding the mathematical structure of a GPT and **verifying that the implementation faithfully follows the corresponding mathematical derivations**.
@@ -32,6 +34,8 @@ The implementation was independently validated in two ways. The gradient-checkin
 | [`gradcheck.py`](gradcheck.py) | Gradient check ① numerical gradient (generates an HTML report with charts) |
 | [`tf_gradcheck.py`](tf_gradcheck.py) | Gradient check ② TensorFlow `GradientTape` |
 | `model.npz` | Trained weights (700 epochs) |
+| [`export_web.py`](export_web.py) | Exports `model.npz` to `docs/model.js` for the browser demo (re-run after retraining) |
+| [`docs/`](docs) | Visual guide and live demo (GitHub Pages); `tinygpt-web.js` is the forward pass ported to JavaScript |
 | `GPT math.pdf` | Forward/backward derivation notes |
 
 ## Quick start
@@ -150,6 +154,8 @@ python gradcheck.py --no-open    # terminal only
 | GELU, LayerNorm, attention head, block | ~1e-11 |
 | Full model (32 parameter groups) | ~1e-7 |
 | **Result** | **56 / 56 PASS** |
+
+Thresholds: relative error < 1e-6 is PASS, 1e-6 to 1e-4 is WARN, 1e-4 or more is FAIL.
 
 The report (`gradcheck_report.html`) shows per-check errors, an analytic-vs-numerical scatter plot
 (every point should sit on y = x), and the error as a function of the step size h.

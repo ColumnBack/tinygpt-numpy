@@ -1,0 +1,412 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>TinyGPT NumPy</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=STIX+Two+Text:ital,wght@0,400;0,600;1,400&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Sans+KR:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="page">
+
+  <div class="bar wide">
+    <nav class="tabs" aria-label="Pages">
+      <a href="index.html" aria-current="page"><span class="en">How it works</span><span class="ko">설명</span></a>
+      <a href="demo.html"><span class="en">Try it</span><span class="ko">데모</span></a>
+    </nav>
+    <div class="bar-r">
+      <div class="seg" role="group" aria-label="Language">
+        <button type="button" id="lang-en" data-set-lang="en" aria-pressed="true">EN</button>
+        <button type="button" id="lang-ko" data-set-lang="ko" aria-pressed="false">한국어</button>
+      </div>
+      <a class="gh" href="https://github.com/ColumnBack/tinygpt-numpy">GitHub ↗</a>
+    </div>
+  </div>
+
+  <!-- HERO -->
+  <header class="hero col">
+    <span class="label"><span class="en">Decoder-only Transformer · educational</span><span class="ko">디코더 전용 Transformer · 교육용</span></span>
+    <h1>TinyGPT, in <span class="np">NumPy</span></h1>
+    <p class="lede">
+      <span class="en">A complete GPT, forward and backward, written with NumPy only. Every gradient was derived by hand, implemented, then checked against two independent references.</span>
+      <span class="ko">순전파와 역전파까지 NumPy만으로 작성한 완전한 GPT입니다. 모든 그래디언트를 손으로 유도하고, 구현한 뒤, 서로 독립적인 두 가지 기준으로 검증했습니다.</span>
+    </p>
+    <div class="formula-hero">
+      <span class="m"><i>G</i><sub><i>S</i></sub> = <i>A</i> ⊙ [ <i>G</i><sub><i>A</i></sub> − (<i>G</i><sub><i>A</i></sub> ⊙ <i>A</i>) <b>1</b><b>1</b><sup>⊤</sup> ]</span>
+      <small><span class="en">Softmax backward, derived by hand in the notes (pp. 16–19) and used as-is in the code</span><span class="ko">노트(16–19쪽)에서 손으로 유도해 코드에 그대로 쓴 softmax 역전파</span></small>
+    </div>
+    <div class="facts">
+      <span><b>77,952</b> <span class="en">parameters</span><span class="ko">파라미터</span></span>
+      <span><b>numpy</b> <span class="en">the only dependency</span><span class="ko">유일한 의존성</span></span>
+      <span><b>36</b> <span class="en">training sentences</span><span class="ko">개 학습 문장</span></span>
+      <span><b>22</b> <span class="en">pages of handwritten derivation</span><span class="ko">쪽 분량의 손글씨 유도</span></span>
+      <span class="ok"><b>56/56</b> + <b>147/147</b> PASS</span>
+    </div>
+  </header>
+
+  <!-- PROCESS -->
+  <section class="col">
+    <div class="sec-head">
+      <span class="label"><span class="en">Method</span><span class="ko">방법</span></span>
+      <h2><span class="en">From paper to verified code</span><span class="ko">종이에서 검증된 코드까지</span></h2>
+    </div>
+    <div class="steps">
+      <div class="step">
+        <span class="n">1</span>
+        <h3><span class="en">Derive by hand</span><span class="ko">손으로 유도</span></h3>
+        <p><span class="en">Forward and backward formulas were worked through step by step on paper.</span><span class="ko">순전파와 역전파 공식을 종이에 단계별로 직접 풀었습니다.</span> <a href="https://github.com/ColumnBack/tinygpt-numpy/blob/main/GPT%20math.pdf">GPT math.pdf</a></p>
+      </div>
+      <div class="step">
+        <span class="n">2</span>
+        <h3><span class="en">Implement in NumPy</span><span class="ko">NumPy로 구현</span></h3>
+        <p><span class="en">ChatGPT turned the derivations into NumPy code, with no autodiff framework in the model.</span><span class="ko">ChatGPT를 사용해 유도한 수식을 NumPy 코드로 옮겼습니다. 모델에는 자동 미분 프레임워크가 없습니다.</span></p>
+      </div>
+      <div class="step">
+        <span class="n">3</span>
+        <h3><span class="en">Compare line by line</span><span class="ko">한 줄씩 대조</span></h3>
+        <p><span class="en">The code was checked against the notes: tensor shapes, forward values, every intermediate gradient.</span><span class="ko">코드를 노트와 대조했습니다: 텐서 차원, 순전파 값, 모든 중간 그래디언트.</span></p>
+      </div>
+      <div class="step">
+        <span class="n">4</span>
+        <h3><span class="en">Check gradients twice</span><span class="ko">그래디언트 이중 검증</span></h3>
+        <p><span class="en">Central finite differences and TensorFlow <code>GradientTape</code>, independently.</span><span class="ko">중앙 차분과 TensorFlow <code>GradientTape</code>로 각각 독립적으로 확인했습니다.</span></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ARCHITECTURE -->
+  <section class="wide">
+    <div class="sec-head col" style="margin-inline:0">
+      <span class="label"><span class="en">Architecture</span><span class="ko">아키텍처</span></span>
+      <h2><span class="en">Forward goes down, gradients come back up</span><span class="ko">순전파는 아래로, 그래디언트는 위로</span></h2>
+      <p class="muted"><span class="en">GPT-style decoder with Post-LayerNorm and weight tying. Each backward step is annotated with the page of the notes it comes from.</span><span class="ko">Post-LayerNorm과 가중치 공유를 사용하는 GPT 스타일 디코더입니다. 각 역전파 단계에 해당 유도가 있는 노트 쪽수를 표시했습니다.</span></p>
+    </div>
+    <div class="two" style="grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr));">
+      <figure>
+        <div class="scroll">
+        <svg viewBox="0 0 660 560" role="img" aria-labelledby="arch-t" style="min-width:520px">
+          <title id="arch-t">TinyGPT architecture with the backward pass</title>
+          <defs>
+            <marker id="a-ink" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10z" class="ah"/></marker>
+            <marker id="a-acc" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10z" class="ah-acc"/></marker>
+            <marker id="a-back" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10z" class="ah-back"/></marker>
+          </defs>
+
+          <!-- column headings -->
+          <text x="270" y="16" text-anchor="middle" class="t-muted" font-size="12" letter-spacing="1">FORWARD</text>
+          <text x="530" y="16" text-anchor="middle" class="t-back" font-size="12" letter-spacing="1">BACKWARD</text>
+
+          <!-- token ids -->
+          <rect x="190" y="30" width="160" height="32" rx="16" class="box"/>
+          <text x="270" y="51" text-anchor="middle" font-size="14" class="t-mono">token ids</text>
+          <line x1="270" y1="62" x2="270" y2="84" class="line" marker-end="url(#a-ink)"/>
+
+          <!-- embedding -->
+          <rect x="130" y="86" width="280" height="44" rx="6" class="box-acc"/>
+          <text x="270" y="113" text-anchor="middle" font-size="16" class="t-math"><tspan font-style="italic">E</tspan>[token] + <tspan font-style="italic">P</tspan>[pos]</text>
+          <line x1="270" y1="130" x2="270" y2="168" class="line" marker-end="url(#a-ink)"/>
+
+          <!-- block frame -->
+          <rect x="70" y="150" width="390" height="250" rx="10" class="frame"/>
+          <text x="448" y="170" text-anchor="end" class="t-muted" font-size="13">× 2 blocks</text>
+
+          <!-- MHA -->
+          <rect x="130" y="170" width="280" height="44" rx="6" class="box"/>
+          <text x="270" y="190" text-anchor="middle" font-size="14">Masked multi-head attention</text>
+          <text x="270" y="207" text-anchor="middle" font-size="12" class="t-muted">4 heads · d<tspan baseline-shift="sub" font-size="9">h</tspan> = 16 · causal mask</text>
+          <line x1="270" y1="214" x2="270" y2="232" class="line" marker-end="url(#a-ink)"/>
+
+          <!-- Add & LN 1 -->
+          <rect x="130" y="234" width="280" height="34" rx="6" class="box"/>
+          <text x="270" y="256" text-anchor="middle" font-size="14">Add &amp; LayerNorm</text>
+          <line x1="270" y1="268" x2="270" y2="286" class="line" marker-end="url(#a-ink)"/>
+
+          <!-- FFN -->
+          <rect x="130" y="288" width="280" height="44" rx="6" class="box"/>
+          <text x="270" y="308" text-anchor="middle" font-size="14">Feed-forward · GELU</text>
+          <text x="270" y="325" text-anchor="middle" font-size="12" class="t-muted">64 → 128 → 64</text>
+          <line x1="270" y1="332" x2="270" y2="350" class="line" marker-end="url(#a-ink)"/>
+
+          <!-- Add & LN 2 -->
+          <rect x="130" y="352" width="280" height="34" rx="6" class="box"/>
+          <text x="270" y="374" text-anchor="middle" font-size="14">Add &amp; LayerNorm</text>
+          <line x1="270" y1="386" x2="270" y2="428" class="line" marker-end="url(#a-ink)"/>
+
+          <!-- residuals -->
+          <path d="M270 156 H110 V251 H128" class="resid" marker-end="url(#a-ink)"/>
+          <path d="M270 278 H110 V369 H128" class="resid" marker-end="url(#a-ink)"/>
+          <text x="104" y="210" text-anchor="end" class="t-muted" font-size="11">residual</text>
+
+          <!-- LM head -->
+          <rect x="130" y="430" width="280" height="44" rx="6" class="box-acc"/>
+          <text x="270" y="457" text-anchor="middle" font-size="16" class="t-math">logits = <tspan font-style="italic">X E</tspan><tspan baseline-shift="super" font-size="11">⊤</tspan></text>
+          <line x1="270" y1="474" x2="270" y2="494" class="line" marker-end="url(#a-ink)"/>
+
+          <!-- loss -->
+          <rect x="130" y="496" width="280" height="44" rx="6" class="box"/>
+          <text x="270" y="523" text-anchor="middle" font-size="14">softmax + cross-entropy</text>
+
+          <!-- weight tying -->
+          <path d="M130 108 H30 V452 H128" class="tie" marker-end="url(#a-acc)"/>
+          <text x="38" y="290" class="t-accent" font-size="12" transform="rotate(-90 38 290)" text-anchor="middle">weight tying · same E</text>
+
+          <!-- backward rail -->
+          <path d="M440 518 V108" class="grad grad-anim" marker-end="url(#a-back)"/>
+          <g font-size="12.5">
+            <line x1="434" y1="518" x2="446" y2="518" class="grad-tick"/>
+            <text x="456" y="514" class="t-back t-math" font-size="14"><tspan font-style="italic">G</tspan><tspan baseline-shift="sub" font-size="10">L</tspan> = (<tspan font-style="italic">P</tspan> − <tspan font-style="italic">Y</tspan>) / <tspan font-style="italic">T</tspan></text>
+            <text x="456" y="530" class="t-muted">p.6 · softmax + CE</text>
+
+            <line x1="434" y1="452" x2="446" y2="452" class="grad-tick"/>
+            <text x="456" y="448" class="t-back t-math" font-size="14"><tspan font-style="italic">G</tspan><tspan baseline-shift="sub" font-size="10">E</tspan> = <tspan font-style="italic">G</tspan><tspan baseline-shift="sub" font-size="10">E</tspan><tspan baseline-shift="super" font-size="9">emb</tspan> + <tspan font-style="italic">G</tspan><tspan baseline-shift="sub" font-size="10">E</tspan><tspan baseline-shift="super" font-size="9">LM</tspan></text>
+            <text x="456" y="464" class="t-muted">p.7 · LM head, tied</text>
+
+            <line x1="434" y1="369" x2="446" y2="369" class="grad-tick"/>
+            <text x="456" y="365" class="t-back">LayerNorm backward</text>
+            <text x="456" y="381" class="t-muted">p.7–14 · compact form</text>
+
+            <line x1="434" y1="310" x2="446" y2="310" class="grad-tick"/>
+            <text x="456" y="306" class="t-back">FFN · GELU′ · residual</text>
+            <text x="456" y="322" class="t-muted">p.15</text>
+
+            <line x1="434" y1="192" x2="446" y2="192" class="grad-tick"/>
+            <text x="456" y="188" class="t-back"><tspan class="t-math" font-style="italic">W</tspan><tspan baseline-shift="sub" font-size="9">O</tspan>, AV, softmax, QK<tspan baseline-shift="super" font-size="9">⊤</tspan></text>
+            <text x="456" y="204" class="t-muted">p.16–19 · attention</text>
+
+            <text x="456" y="104" class="t-back">scatter-add into E, P</text>
+            <text x="456" y="120" class="t-muted">p.20 · embedding</text>
+          </g>
+        </svg>
+        </div>
+        <figcaption><span class="en">Dashed magenta rail: gradient flow. Dashed blue: the embedding matrix <span class="m"><i>E</i></span> is reused as the output layer, so its gradient has two contributions.</span><span class="ko">자홍색 점선: 그래디언트 흐름. 파란 점선: 임베딩 행렬 <span class="m"><i>E</i></span>를 출력층에서 다시 쓰므로 그래디언트가 두 경로에서 합쳐집니다.</span></figcaption>
+      </figure>
+
+      <div style="display:grid; gap:1rem; min-width:0">
+        <div class="tbl">
+          <table>
+            <thead><tr><th><span class="en">Setting</span><span class="ko">설정</span></th><th><span class="en">Value</span><span class="ko">값</span></th></tr></thead>
+            <tbody>
+              <tr><td><span class="en">Vocabulary (word-level)</span><span class="ko">어휘 (단어 단위)</span></td><td class="num">169</td></tr>
+              <tr><td>d_model / heads / d_ff / layers</td><td class="num">64 / 4 / 128 / 2</td></tr>
+              <tr><td><span class="en">Max context</span><span class="ko">최대 컨텍스트</span></td><td class="num">11 tokens</td></tr>
+              <tr><td><span class="en">Parameters</span><span class="ko">파라미터 수</span></td><td class="num">77,952</td></tr>
+              <tr><td><span class="en">Optimizer</span><span class="ko">옵티마이저</span></td><td class="num">Adam · lr 2e-3 · clip 1.0</td></tr>
+              <tr><td><span class="en">Batch</span><span class="ko">배치</span></td><td><span class="en">1 sentence, 36 updates per epoch</span><span class="ko">문장 1개, 에폭당 36회 업데이트</span></td></tr>
+              <tr><td><span class="en">Trained for</span><span class="ko">학습량</span></td><td class="num">700 epochs</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="eq">
+          <span class="label"><span class="en">Each attention head</span><span class="ko">각 어텐션 헤드</span></span>
+          <span class="m"><i>Q</i> = <i>XW</i><sub><i>Q</i></sub>,&nbsp; <i>K</i> = <i>XW</i><sub><i>K</i></sub>,&nbsp; <i>V</i> = <i>XW</i><sub><i>V</i></sub></span>
+          <span class="m"><i>A</i> = softmax( <span class="frac"><span><i>QK</i><sup>⊤</sup></span><span>√<i>d</i><sub><i>h</i></sub></span></span> + <i>M</i> ),&nbsp; <i>O</i><sub><i>h</i></sub> = <i>AV</i></span>
+          <span class="muted" style="font-size:var(--s-sm)"><span class="en"><span class="m"><i>M</i></span> is the causal mask that blocks future positions.</span><span class="ko"><span class="m"><i>M</i></span>은 미래 위치를 가리는 causal mask입니다.</span></span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- DERIVATIONS -->
+  <section class="col">
+    <div class="sec-head">
+      <span class="label"><span class="en">The notes</span><span class="ko">유도 노트</span></span>
+      <h2><span class="en">22 pages, mapped</span><span class="ko">22쪽 노트 지도</span></h2>
+      <p class="muted"><span class="en">Where each part of the derivation lives in</span><span class="ko">각 유도가 들어 있는 위치:</span> <a href="https://github.com/ColumnBack/tinygpt-numpy/blob/main/GPT%20math.pdf">GPT math.pdf</a></p>
+    </div>
+    <div class="pages" aria-hidden="true">
+      <div class="pg c-fwd">1</div><div class="pg c-fwd">2</div><div class="pg c-fwd">3</div><div class="pg c-fwd">4</div><div class="pg c-fwd">5</div>
+      <div class="pg c-loss">6</div>
+      <div class="pg" style="background: linear-gradient(90deg, var(--back-soft) 50%, var(--warn-soft) 50%); box-shadow: inset 0 -3px 0 var(--back)">7</div>
+      <div class="pg c-ln">8</div><div class="pg c-ln">9</div><div class="pg c-ln">10</div><div class="pg c-ln">11</div>
+      <div class="pg c-ln">12</div><div class="pg c-ln">13</div><div class="pg c-ln">14</div>
+      <div class="pg c-ffn">15</div>
+      <div class="pg c-att">16</div><div class="pg c-att">17</div><div class="pg c-att">18</div><div class="pg c-att">19</div>
+      <div class="pg c-emb">20</div>
+      <div class="pg c-none">21</div><div class="pg c-none">22</div>
+    </div>
+    <ul class="legend">
+      <li><span class="sw c-fwd"></span><span class="pp">1–5</span><span class="en">Forward: embedding, attention, LayerNorm, FFN, LM head, cross-entropy</span><span class="ko">순전파: 임베딩, 어텐션, LayerNorm, FFN, LM 헤드, 크로스 엔트로피</span></li>
+      <li><span class="sw c-loss"></span><span class="pp">6–7</span><span class="en">Softmax + cross-entropy backward; LM head backward and weight tying</span><span class="ko">Softmax + 크로스 엔트로피 역전파, LM 헤드 역전파와 가중치 공유</span></li>
+      <li><span class="sw c-ln"></span><span class="pp">7–14</span><span class="en">LayerNorm backward, path by path (7–11), then the compact form used in code (12–14)</span><span class="ko">LayerNorm 역전파: 경로별 유도(7–11), 코드에서 쓰는 간결한 형태(12–14)</span></li>
+      <li><span class="sw c-ffn"></span><span class="pp">15</span><span class="en">Residual, FFN backward, GELU backward</span><span class="ko">잔차 연결, FFN 역전파, GELU 역전파</span></li>
+      <li><span class="sw c-att"></span><span class="pp">16–19</span><span class="en">Attention backward: W<sub>O</sub>, AV, softmax, QK<sup>⊤</sup>, W<sub>Q</sub>, W<sub>K</sub>, W<sub>V</sub></span><span class="ko">어텐션 역전파: W<sub>O</sub>, AV, softmax, QK<sup>⊤</sup>, W<sub>Q</sub>, W<sub>K</sub>, W<sub>V</sub></span></li>
+      <li><span class="sw c-emb"></span><span class="pp">20</span><span class="en">Embedding backward (gradients of repeated tokens accumulate)</span><span class="ko">임베딩 역전파 (반복된 토큰의 그래디언트는 누적)</span></li>
+    </ul>
+    <div class="eq">
+      <span class="label"><span class="en">LayerNorm backward, compact form</span><span class="ko">LayerNorm 역전파, 간결한 형태</span></span>
+      <span class="m"><i>G</i><sub><i>R</i></sub> = <span class="frac"><span>1</span><span><i>D</i></span></span> ⊙ [ <i>G</i><sub><i>R̂</i></sub> − mean(<i>G</i><sub><i>R̂</i></sub>) − <i>R̂</i> ⊙ mean(<i>G</i><sub><i>R̂</i></sub> ⊙ <i>R̂</i>) ],&nbsp;&nbsp; <i>G</i><sub><i>R̂</i></sub> = <i>G</i><sub><i>Y</i></sub> ⊙ γ</span>
+    </div>
+  </section>
+
+  <!-- VERIFICATION -->
+  <section class="col">
+    <div class="sec-head">
+      <span class="label"><span class="en">Verification</span><span class="ko">검증</span></span>
+      <h2><span class="en">Two independent gradient checks</span><span class="ko">서로 독립적인 두 가지 그래디언트 검증</span></h2>
+      <p class="muted"><span class="en">Components first (GELU, LayerNorm, attention head, block), then every parameter of the full model. LayerNorm γ, β and the biases are moved away from 1 and 0 so that a missing γ cannot hide.</span><span class="ko">먼저 구성 요소(GELU, LayerNorm, 어텐션 헤드, 블록)를, 그다음 전체 모델의 모든 파라미터를 확인합니다. γ 누락 같은 버그가 숨지 못하도록 LayerNorm γ, β와 편향을 1과 0에서 벗어나게 설정합니다.</span></p>
+    </div>
+
+    <figure>
+      <svg viewBox="0 0 680 270" role="img" aria-labelledby="err-t">
+        <title id="err-t">Typical relative error per check, log scale</title>
+        <!-- X(e) = 230 + (e + 17) * 28.667 ; e in [-17, -2] -->
+        <rect x="230" y="34" width="315.3" height="196" class="band-pass"/>
+        <rect x="545.3" y="34" width="57.3" height="196" class="band-warn"/>
+        <rect x="602.7" y="34" width="57.3" height="196" class="band-fail"/>
+        <text x="388" y="26" text-anchor="middle" font-size="11" fill="var(--pass)" style="fill:var(--pass)" letter-spacing="1">PASS &lt; 1e-6</text>
+        <text x="574" y="26" text-anchor="middle" font-size="11" style="fill:var(--warn)" letter-spacing="1">WARN</text>
+        <text x="631" y="26" text-anchor="middle" font-size="11" style="fill:var(--fail)" letter-spacing="1">FAIL</text>
+
+        <g class="t-muted" font-size="11" text-anchor="middle">
+          <line x1="258.7" y1="230" x2="258.7" y2="236" class="axis"/><text x="258.7" y="250" class="t-mono t-muted">1e-16</text>
+          <line x1="316" y1="230" x2="316" y2="236" class="axis"/><text x="316" y="250" class="t-mono t-muted">1e-14</text>
+          <line x1="373.3" y1="230" x2="373.3" y2="236" class="axis"/><text x="373.3" y="250" class="t-mono t-muted">1e-12</text>
+          <line x1="430.7" y1="230" x2="430.7" y2="236" class="axis"/><text x="430.7" y="250" class="t-mono t-muted">1e-10</text>
+          <line x1="488" y1="230" x2="488" y2="236" class="axis"/><text x="488" y="250" class="t-mono t-muted">1e-8</text>
+          <line x1="545.3" y1="230" x2="545.3" y2="236" class="axis"/><text x="545.3" y="250" class="t-mono t-muted">1e-6</text>
+          <line x1="602.7" y1="230" x2="602.7" y2="236" class="axis"/><text x="602.7" y="250" class="t-mono t-muted">1e-4</text>
+        </g>
+        <line x1="230" y1="230" x2="660" y2="230" class="axis"/>
+        <text x="445" y="266" text-anchor="middle" font-size="11" class="t-muted"><tspan class="en">relative error (log scale) · lower is better</tspan><tspan class="ko">상대 오차 (로그 스케일) · 왼쪽일수록 정확</tspan></text>
+
+        <!-- group 1: numerical -->
+        <text x="12" y="56" font-size="12" font-weight="600" class="t-accent"><tspan class="en">① Numerical gradient</tspan><tspan class="ko">① 수치 그래디언트</tspan></text>
+        <text x="12" y="80" font-size="12.5"><tspan class="en">GELU, LN, attention, block</tspan><tspan class="ko">GELU, LN, 어텐션, 블록</tspan></text>
+        <line x1="230" y1="76" x2="402" y2="76" class="stem"/><circle cx="402" cy="76" r="6" class="dot-np"/>
+        <text x="412" y="80" font-size="11" class="t-mono">~1e-11</text>
+        <text x="12" y="106" font-size="12.5"><tspan class="en">Full model, 32 param groups</tspan><tspan class="ko">전체 모델, 파라미터 그룹 32개</tspan></text>
+        <line x1="230" y1="102" x2="516.7" y2="102" class="stem"/><circle cx="516.7" cy="102" r="6" class="dot-np"/>
+        <text x="482" y="92" font-size="11" class="t-mono" text-anchor="middle">~1e-7</text>
+
+        <!-- group 2: TF -->
+        <text x="12" y="146" font-size="12" font-weight="600" class="t-back"><tspan class="en">② TensorFlow autodiff</tspan><tspan class="ko">② TensorFlow 자동 미분</tspan></text>
+        <text x="12" y="170" font-size="12.5"><tspan class="en">LayerNorm, attention head</tspan><tspan class="ko">LayerNorm, 어텐션 헤드</tspan></text>
+        <line x1="230" y1="166" x2="258.7" y2="166" class="stem"/><circle cx="258.7" cy="166" r="6" class="dot-tf"/>
+        <text x="270" y="170" font-size="11" class="t-mono">~1e-16</text>
+        <text x="12" y="196" font-size="12.5"><tspan class="en">GELU, block, full model</tspan><tspan class="ko">GELU, 블록, 전체 모델</tspan></text>
+        <line x1="230" y1="192" x2="430.7" y2="192" class="stem"/><circle cx="430.7" cy="192" r="6" class="dot-tf"/>
+        <text x="441" y="196" font-size="11" class="t-mono">~1e-10</text>
+      </svg>
+      <figcaption><span class="en">Typical relative error reported by each script. Thresholds: PASS below 1e-6, WARN up to 1e-4, FAIL above.</span><span class="ko">각 스크립트가 보고하는 대표 상대 오차입니다. 판정 기준: 1e-6 미만 PASS, 1e-4까지 WARN, 그 이상 FAIL.</span></figcaption>
+    </figure>
+
+    <div class="verdicts">
+      <div class="verdict">
+        <span class="label">gradcheck.py</span>
+        <div class="score">56<span> / 56</span></div>
+        <span class="pill">PASS</span>
+        <p><span class="en">Compares against central differences <span class="m">(<i>L</i>(θ+<i>h</i>) − <i>L</i>(θ−<i>h</i>)) / 2<i>h</i></span>. Writes an HTML report with an analytic-vs-numerical scatter and an error-vs-<i>h</i> curve.</span><span class="ko">중앙 차분 <span class="m">(<i>L</i>(θ+<i>h</i>) − <i>L</i>(θ−<i>h</i>)) / 2<i>h</i></span>와 비교합니다. 해석적/수치 그래디언트 산점도와 <i>h</i>에 따른 오차 곡선이 담긴 HTML 리포트를 만듭니다.</span></p>
+      </div>
+      <div class="verdict">
+        <span class="label">tf_gradcheck.py</span>
+        <div class="score">147<span> / 147</span></div>
+        <span class="pill">PASS</span>
+        <p><span class="en">Re-implements the same model independently with TensorFlow ops and compares against <code>GradientTape</code>.</span><span class="ko">같은 모델을 TensorFlow 연산으로 독립적으로 다시 구현하고 <code>GradientTape</code> 결과와 비교합니다.</span></p>
+      </div>
+    </div>
+
+    <p class="note"><span class="en">Why the full model stops near 1e-7: the <code>1e-12</code> inside <code>log(p + 1e-12)</code> shifts the loss slightly for tokens with tiny probability. Why GELU rows sit at 1e-10 in TensorFlow: <code>tf.nn.gelu</code> already differs by about 1e-10 in the forward pass. Writing the same GELU formula by hand in TF brings all 147 checks to 1e-15.</span><span class="ko">전체 모델이 1e-7 근처에서 멈추는 이유: <code>log(p + 1e-12)</code> 안의 <code>1e-12</code>가 확률이 아주 작은 토큰에서 손실을 조금 바꾸기 때문입니다. TensorFlow에서 GELU 항목이 1e-10인 이유: <code>tf.nn.gelu</code>가 순전파에서 이미 약 1e-10 차이가 납니다. 같은 GELU 공식을 TF로 직접 쓰면 147개 모두 1e-15까지 일치합니다.</span></p>
+  </section>
+
+  <!-- QUICK START -->
+  <section class="col">
+    <div class="sec-head">
+      <span class="label"><span class="en">Quick start</span><span class="ko">빠른 시작</span></span>
+      <h2><span class="en">Clone, then generate</span><span class="ko">클론하고 바로 생성</span></h2>
+      <p class="muted"><span class="en">Trained weights (<code>model.npz</code>) ship with the repo, so generation works right away.</span><span class="ko">학습된 가중치(<code>model.npz</code>)가 저장소에 포함되어 있어 바로 생성할 수 있습니다.</span></p>
+    </div>
+    <div class="code">
+      <button class="copy" type="button" data-copy="git clone https://github.com/ColumnBack/tinygpt-numpy.git&#10;cd tinygpt-numpy&#10;pip install -r requirements.txt&#10;python generate.py">Copy</button>
+<pre><span class="p">$ </span>git clone https://github.com/ColumnBack/tinygpt-numpy.git
+<span class="p">$ </span>cd tinygpt-numpy
+<span class="p">$ </span>pip install -r requirements.txt   <span class="c"># numpy only</span>
+<span class="p">$ </span>python generate.py</pre>
+    </div>
+    <a class="teaser" href="demo.html">
+      <span class="teaser-txt">
+        <span class="label"><span class="en">Live demo</span><span class="ko">라이브 데모</span></span>
+        <span class="teaser-h"><span class="en">Type a word and watch it finish the sentence</span><span class="ko">단어를 입력하고 문장이 완성되는 과정을 보세요</span></span>
+        <span class="muted"><span class="en">The same 77,952 weights, running in your browser, next to the 36 sentences it learned from.</span><span class="ko">같은 77,952개 가중치를 브라우저에서 실행하고, 학습한 36개 문장과 나란히 보여줍니다.</span></span>
+      </span>
+      <span class="teaser-demo mono" aria-hidden="true"><span class="p">&gt;</span> the dog<br><span class="out">runs in the park with a red ball</span></span>
+    </a>
+
+    <div class="two">
+      <div class="prose">
+        <h3>generate.py</h3>
+        <ul class="plain">
+          <li><span class="en">Words that start a sentence work best: <code>the</code>, <code>my</code>, <code>we</code>, <code>she</code></span><span class="ko">문장을 시작하는 단어가 가장 잘 동작합니다: <code>the</code>, <code>my</code>, <code>we</code>, <code>she</code></span></li>
+          <li><span class="en">Unknown words (e.g. <code>hello</code>) are reported</span><span class="ko">모르는 단어(예: <code>hello</code>)는 알려 줍니다</span></li>
+          <li><span class="en">Each output is tagged as a training sentence or a new combination</span><span class="ko">출력마다 학습 문장인지 새로운 조합인지 표시합니다</span></li>
+        </ul>
+        <div class="code"><pre>python generate.py --temperature 1.0 --samples 5</pre></div>
+      </div>
+      <div class="prose">
+        <h3>train.py</h3>
+        <ul class="plain">
+          <li><span class="en">Saves <code>model.npz</code> after every epoch, Adam state included</span><span class="ko">매 에폭 <code>model.npz</code>에 저장 (Adam 상태 포함)</span></li>
+          <li><span class="en"><kbd>Ctrl+C</kbd> saves and stops; re-running resumes exactly</span><span class="ko"><kbd>Ctrl+C</kbd>로 저장 후 중지, 다시 실행하면 그대로 재개</span></li>
+          <li><span class="en">Changing the sentences triggers a fresh start</span><span class="ko">학습 문장을 바꾸면 처음부터 다시 학습</span></li>
+        </ul>
+        <div class="code"><pre>python train.py --epochs 1000
+python train.py --retrain</pre></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FILES -->
+  <section class="col">
+    <div class="sec-head">
+      <span class="label"><span class="en">Files</span><span class="ko">파일 구성</span></span>
+      <h2><span class="en">What is in the repo</span><span class="ko">저장소 구성</span></h2>
+    </div>
+    <div class="tbl">
+      <table>
+        <tbody>
+          <tr><td class="num"><a href="https://github.com/ColumnBack/tinygpt-numpy/blob/main/tinygpt.py">tinygpt.py</a></td><td><span class="en">The model: <code>TinyGPT</code> forward/backward, <code>Adam</code>, tokenizer, save/load</span><span class="ko">모델: <code>TinyGPT</code> 순전파/역전파, <code>Adam</code>, 토크나이저, 저장/불러오기</span></td></tr>
+          <tr><td class="num"><a href="https://github.com/ColumnBack/tinygpt-numpy/blob/main/train.py">train.py</a></td><td><span class="en">Corpus of 36 sentences and the training loop, with resume</span><span class="ko">36개 문장 코퍼스와 학습 루프 (재개 지원)</span></td></tr>
+          <tr><td class="num"><a href="https://github.com/ColumnBack/tinygpt-numpy/blob/main/generate.py">generate.py</a></td><td><span class="en">Type one or two words, get a sentence</span><span class="ko">단어 한두 개를 입력하면 문장 생성</span></td></tr>
+          <tr><td class="num"><a href="https://github.com/ColumnBack/tinygpt-numpy/blob/main/gradcheck.py">gradcheck.py</a></td><td><span class="en">Gradient check ①, numerical, with an HTML report</span><span class="ko">그래디언트 검증 ①, 수치 미분, HTML 리포트 생성</span></td></tr>
+          <tr><td class="num"><a href="https://github.com/ColumnBack/tinygpt-numpy/blob/main/tf_gradcheck.py">tf_gradcheck.py</a></td><td><span class="en">Gradient check ②, TensorFlow <code>GradientTape</code></span><span class="ko">그래디언트 검증 ②, TensorFlow <code>GradientTape</code></span></td></tr>
+          <tr><td class="num">model.npz</td><td><span class="en">Trained weights, 700 epochs</span><span class="ko">학습된 가중치, 700 에폭</span></td></tr>
+          <tr><td class="num"><a href="https://github.com/ColumnBack/tinygpt-numpy/blob/main/GPT%20math.pdf">GPT math.pdf</a></td><td><span class="en">Handwritten forward/backward derivations</span><span class="ko">손글씨 순전파/역전파 유도 노트</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- LIMITS -->
+  <section class="col">
+    <div class="two">
+      <div class="prose">
+        <span class="label"><span class="en">Limitations</span><span class="ko">한계</span></span>
+        <ul class="plain">
+          <li><span class="en">It mostly memorizes: 36 sentences, most words seen once. Loss plateaus near 0.42 because some positions have many valid next words (over 20 sentences can follow <code>the</code>).</span><span class="ko">대부분 외웁니다: 문장 36개, 대부분의 단어가 한 번씩 등장. 다음 단어 정답이 여러 개인 위치가 있어 손실이 0.42 근처에서 멈춥니다 (<code>the</code> 다음에 올 수 있는 문장이 20개 이상).</span></li>
+          <li><span class="en">Word-level tokens, so unseen words cannot be handled.</span><span class="ko">단어 단위 토큰이라 처음 보는 단어는 처리할 수 없습니다.</span></li>
+          <li><span class="en">No batching; one sentence at a time on the CPU.</span><span class="ko">배치 없이 CPU에서 문장 하나씩 처리합니다.</span></li>
+          <li><span class="en">Post-LayerNorm (GPT-2 and later use Pre-LayerNorm).</span><span class="ko">Post-LayerNorm 구조입니다 (GPT-2 이후는 Pre-LayerNorm).</span></li>
+        </ul>
+      </div>
+      <div class="prose">
+        <span class="label"><span class="en">Requirements</span><span class="ko">요구 사항</span></span>
+        <ul class="plain">
+          <li>Python 3.10+ <span class="muted"><span class="en">(tested on 3.14)</span><span class="ko">(3.14에서 테스트)</span></span></li>
+          <li>NumPy <span class="muted"><span class="en">(tested on 2.3)</span><span class="ko">(2.3에서 테스트)</span></span></li>
+          <li><span class="en">TensorFlow only for <code>tf_gradcheck.py</code> (Python 3.13 + TF 2.21)</span><span class="ko">TensorFlow는 <code>tf_gradcheck.py</code>에만 필요 (Python 3.13 + TF 2.21)</span></li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <footer class="col">
+    <span><a href="https://github.com/ColumnBack/tinygpt-numpy/blob/main/README.md">README (English)</a> · <a href="https://github.com/ColumnBack/tinygpt-numpy/blob/main/README.ko.md">README (한국어)</a></span>
+    <span class="mono">tinygpt-numpy</span>
+  </footer>
+</div>
+
+<script src="site.js"></script>
+</body>
+</html>

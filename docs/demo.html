@@ -1,0 +1,416 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>TinyGPT Playground</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=STIX+Two+Text:ital,wght@0,400;0,600;1,400&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Sans+KR:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="style.css">
+<style>
+/* Layout: prompt + next-word bars on the left, the 36 training sentences on the right, so every prediction sits next to what it was learned from. */
+.demo-hero { padding-block: 2.5rem 1.5rem; display: grid; gap: 1rem; }
+.demo-hero h1 { font-size: clamp(2rem, 5.5vw, 3.2rem); }
+.corpus-fact { display: flex; flex-wrap: wrap; gap: 0.75rem 2rem; align-items: baseline; }
+.corpus-fact .big { font-family: var(--f-display); font-size: 3rem; line-height: 1; color: var(--accent); font-variant-numeric: tabular-nums; }
+.corpus-fact .fact { display: flex; gap: 0.6rem; align-items: baseline; max-width: 17rem; }
+.corpus-fact .fact span:last-child { font-size: var(--s-sm); color: var(--muted); line-height: 1.4; }
+
+.play { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 1.25rem; align-items: start; padding-block: 1rem 0; }
+@media (max-width: 860px) { .play { grid-template-columns: minmax(0, 1fr); } }
+.panel { background: var(--surface); border: 1px solid var(--rule); border-radius: 8px; padding: 1.1rem; display: grid; gap: 1rem; min-width: 0; }
+.panel h2 { font-size: var(--s-lg); }
+.panel-head { display: flex; justify-content: space-between; align-items: baseline; gap: 0.5rem 1rem; flex-wrap: wrap; }
+
+/* prompt */
+.prompt-row { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+.prompt-row input { flex: 1 1 14rem; min-width: 0; font: inherit; font-family: var(--f-mono); font-size: 1.05rem; padding: 0.55rem 0.75rem; border: 1px solid var(--rule); border-radius: 6px; background: var(--bg); color: var(--ink); }
+.prompt-row input:focus { outline: 2px solid var(--accent); outline-offset: 0; border-color: var(--accent); }
+.btn { font: inherit; font-size: var(--s-sm); font-weight: 500; padding: 0.5rem 0.9rem; border-radius: 6px; border: 1px solid var(--rule); background: var(--surface); color: var(--ink); cursor: pointer; }
+.btn:hover { border-color: var(--ink); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--surface); }
+.btn.primary:hover { filter: brightness(1.08); }
+.btn:disabled { opacity: 0.45; cursor: default; }
+.btn:focus-visible, .chip:focus-visible, .bar-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.chips { display: flex; flex-wrap: wrap; gap: 0.35rem; align-items: center; }
+.chips .label { margin-right: 0.25rem; }
+.chip { font: inherit; font-family: var(--f-mono); font-size: var(--s-xs); padding: 0.15rem 0.55rem; border-radius: 999px; border: 1px solid var(--rule); background: var(--bg); color: var(--ink); cursor: pointer; }
+.chip:hover { border-color: var(--accent); color: var(--accent); }
+.controls { display: flex; flex-wrap: wrap; gap: 0.75rem 1.25rem; align-items: center; font-size: var(--s-sm); }
+.controls label { display: flex; gap: 0.5rem; align-items: center; color: var(--muted); }
+.controls input[type="range"] { width: 8rem; accent-color: var(--accent); }
+.controls output { font-family: var(--f-mono); color: var(--ink); min-width: 2.2rem; font-variant-numeric: tabular-nums; }
+.msg { font-size: var(--s-sm); padding: 0.55rem 0.8rem; border-radius: 6px; background: var(--warn-soft); color: var(--ink); }
+.msg b { font-family: var(--f-mono); color: var(--warn); }
+
+/* sentence so far */
+.sofar { font-family: var(--f-mono); font-size: 1rem; line-height: 1.9; display: flex; flex-wrap: wrap; gap: 0.3rem; align-items: center; }
+.tok { padding: 0.05rem 0.45rem; border-radius: 4px; background: var(--code-bg); border: 1px solid var(--rule); }
+.tok.bos { color: var(--muted); font-size: 0.8rem; }
+.tok.gen { background: var(--accent-soft); border-color: var(--accent); }
+.tok.eos { color: var(--pass); border-color: var(--pass); background: var(--pass-soft); font-size: 0.8rem; }
+.ctx-note { font-size: var(--s-xs); color: var(--muted); }
+
+/* next-word bars */
+.bars { display: grid; gap: 0.3rem; }
+.bar-btn { display: grid; grid-template-columns: 7.5rem minmax(0, 1fr) 3.4rem; gap: 0.6rem; align-items: center; font: inherit; font-size: var(--s-sm); text-align: left; background: transparent; border: 0; padding: 0.15rem 0.25rem; border-radius: 4px; color: var(--ink); cursor: pointer; }
+.bar-btn:hover { background: var(--accent-soft); }
+.bar-btn:disabled { cursor: default; background: transparent; }
+.bar-word { font-family: var(--f-mono); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; gap: 0.35rem; align-items: center; }
+.seen { width: 0.45rem; height: 0.45rem; border-radius: 50%; background: var(--pass); flex: none; }
+.seen.no { background: transparent; border: 1px solid var(--muted); }
+.bar-track { height: 0.9rem; background: var(--code-bg); border-radius: 2px; overflow: hidden; }
+.bar-fill { height: 100%; background: var(--accent); border-radius: 0 2px 2px 0; transition: width 0.25s ease; }
+.bar-pct { font-family: var(--f-mono); font-size: var(--s-xs); text-align: right; font-variant-numeric: tabular-nums; color: var(--muted); }
+.bars-foot { display: flex; flex-wrap: wrap; gap: 0.4rem 1.2rem; font-size: var(--s-xs); color: var(--muted); align-items: center; }
+.bars-foot .k { display: inline-flex; gap: 0.35rem; align-items: center; }
+.step-btns { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+
+/* samples */
+.samples { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.45rem; }
+.samples li { display: flex; flex-wrap: wrap; gap: 0.3rem 0.75rem; align-items: baseline; justify-content: space-between; padding: 0.5rem 0.7rem; border-radius: 6px; background: var(--bg); border: 1px solid var(--rule); }
+.samples .s { font-family: var(--f-mono); font-size: 0.92rem; min-width: 0; overflow-wrap: anywhere; }
+.samples .s .pre { color: var(--muted); }
+.tag { font-size: var(--s-xs); font-weight: 600; padding: 0.05rem 0.5rem; border-radius: 999px; white-space: nowrap; }
+.tag.train { background: var(--accent-soft); color: var(--accent); }
+.tag.new { background: var(--back-soft); color: var(--back); }
+.summary { font-size: var(--s-sm); color: var(--muted); }
+.summary b { color: var(--ink); font-variant-numeric: tabular-nums; }
+.empty { font-size: var(--s-sm); color: var(--muted); border: 1px dashed var(--rule); border-radius: 6px; padding: 0.8rem; }
+
+/* corpus */
+.corpus { list-style: none; margin: 0; padding: 0; display: grid; gap: 1px; max-height: 44rem; overflow-y: auto; }
+.corpus li { display: grid; grid-template-columns: 1.8rem minmax(0, 1fr) auto; gap: 0.5rem; align-items: baseline; font-size: var(--s-sm); padding: 0.28rem 0.4rem; border-radius: 4px; transition: opacity 0.2s ease, background 0.2s ease; }
+.corpus .n { font-family: var(--f-mono); font-size: var(--s-xs); color: var(--muted); text-align: right; font-variant-numeric: tabular-nums; }
+.corpus .t { font-family: var(--f-mono); font-size: 0.84rem; overflow-wrap: anywhere; }
+.corpus .t mark { background: var(--accent-soft); color: var(--accent); border-radius: 2px; padding: 0 0.1em; }
+.corpus .t .nx { text-decoration: underline; text-decoration-color: var(--pass); text-decoration-thickness: 2px; text-underline-offset: 3px; }
+.corpus li.off { opacity: 0.32; }
+.corpus li.flash { background: var(--pass-soft); }
+.hits { font-family: var(--f-mono); font-size: var(--s-xs); color: var(--pass); white-space: nowrap; }
+.match-count { font-size: var(--s-sm); }
+.match-count b { font-family: var(--f-mono); font-size: 1.1rem; color: var(--accent); font-variant-numeric: tabular-nums; }
+.side { display: grid; gap: 1.25rem; min-width: 0; }
+.explain { font-size: var(--s-sm); color: var(--muted); display: grid; gap: 0.5rem; }
+@media (prefers-reduced-motion: reduce) { .bar-fill, .corpus li { transition: none; } }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="bar wide">
+    <nav class="tabs" aria-label="Pages">
+      <a href="index.html"><span class="en">How it works</span><span class="ko">설명</span></a>
+      <a href="demo.html" aria-current="page"><span class="en">Try it</span><span class="ko">데모</span></a>
+    </nav>
+    <div class="bar-r">
+      <div class="seg" role="group" aria-label="Language">
+        <button type="button" id="lang-en" data-set-lang="en" aria-pressed="true">EN</button>
+        <button type="button" id="lang-ko" data-set-lang="ko" aria-pressed="false">한국어</button>
+      </div>
+      <a class="gh" href="https://github.com/ColumnBack/tinygpt-numpy">GitHub ↗</a>
+    </div>
+  </div>
+
+  <header class="demo-hero wide">
+    <span class="label"><span class="en">Playground · runs in your browser</span><span class="ko">플레이그라운드 · 브라우저에서 실행</span></span>
+    <h1><span class="en">What does a 36-sentence GPT say?</span><span class="ko">문장 36개로 배운 GPT는 무슨 말을 할까?</span></h1>
+    <p class="lede" style="max-width:44rem">
+      <span class="en">Type a few words. The model shows its next-word probabilities, and the training sentences that begin the same way light up beside it. Most of the time it is recalling one of them.</span>
+      <span class="ko">단어 몇 개를 입력하면 모델이 다음 단어 확률을 보여주고, 같은 단어로 시작하는 학습 문장이 옆에 표시됩니다. 대부분의 경우 모델은 그 문장 중 하나를 떠올리고 있습니다.</span>
+    </p>
+    <div class="corpus-fact">
+      <div class="fact"><span class="big">36</span><span><span class="en">training sentences, the whole corpus</span><span class="ko">개 학습 문장이 코퍼스 전부</span></span></div>
+      <div class="fact"><span class="big" id="vocab-count">169</span><span><span class="en">words it knows; anything else is rejected</span><span class="ko">개 단어만 알고, 나머지는 입력할 수 없음</span></span></div>
+      <div class="fact"><span class="big" id="epoch-count">700</span><span><span class="en">epochs, the same weights as <code>model.npz</code></span><span class="ko">에폭 학습, <code>model.npz</code>와 같은 가중치</span></span></div>
+    </div>
+  </header>
+
+  <div class="play wide">
+    <!-- LEFT: prompt, next word, samples -->
+    <div style="display:grid; gap:1.25rem; min-width:0">
+      <div class="panel">
+        <div class="prompt-row">
+          <input id="prompt" type="text" value="the dog" autocomplete="off" spellcheck="false" aria-label="Prompt">
+          <button class="btn primary" type="button" id="gen-btn"><span class="en">Generate 5</span><span class="ko">5개 생성</span></button>
+        </div>
+        <div class="chips" id="chips"><span class="label"><span class="en">Start with</span><span class="ko">시작 단어</span></span></div>
+        <div class="controls">
+          <label for="temp"><span class="en">Temperature</span><span class="ko">Temperature</span>
+            <input id="temp" type="range" min="0.1" max="1.5" step="0.1" value="0.7">
+            <output id="temp-out" for="temp">0.7</output>
+          </label>
+          <span class="muted" style="font-size:var(--s-xs)"><span class="en">Lower sticks to the training sentences; higher mixes them.</span><span class="ko">낮을수록 학습 문장 그대로, 높을수록 섞입니다.</span></span>
+        </div>
+        <div class="msg" id="msg" hidden></div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head">
+          <h2><span class="en">Next word</span><span class="ko">다음 단어</span></h2>
+          <div class="step-btns">
+            <button class="btn" type="button" id="sample-btn"><span class="en">Sample one</span><span class="ko">하나 샘플링</span></button>
+            <button class="btn" type="button" id="undo-btn"><span class="en">Undo</span><span class="ko">되돌리기</span></button>
+          </div>
+        </div>
+        <div class="sofar" id="sofar"></div>
+        <div class="bars" id="bars"></div>
+        <div class="bars-foot">
+          <span class="k"><span class="seen"></span><span class="en">appears after these words in a training sentence</span><span class="ko">학습 문장에서 이 단어 뒤에 실제로 나옴</span></span>
+          <span class="k"><span class="seen no"></span><span class="en">never does</span><span class="ko">나온 적 없음</span></span>
+          <span id="rest"></span>
+        </div>
+        <p class="ctx-note"><span class="en">Click a word to add it. Probabilities use the temperature above, the same ones sampling draws from.</span><span class="ko">단어를 누르면 이어 붙입니다. 확률은 위 temperature를 적용한 값으로, 샘플링에 쓰는 분포와 같습니다.</span></p>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head">
+          <h2><span class="en">Generated sentences</span><span class="ko">생성된 문장</span></h2>
+          <span class="summary" id="summary"></span>
+        </div>
+        <ul class="samples" id="samples"></ul>
+        <div class="empty" id="samples-empty"><span class="en">Press Generate to sample five complete sentences from the current words.</span><span class="ko">생성 버튼을 누르면 지금 단어로 시작하는 완성 문장 5개를 샘플링합니다.</span></div>
+      </div>
+    </div>
+
+    <!-- RIGHT: corpus -->
+    <aside class="side">
+      <div class="panel">
+        <div class="panel-head">
+          <h2><span class="en">Everything it learned</span><span class="ko">학습한 문장 전부</span></h2>
+          <span class="match-count" id="match-count"></span>
+        </div>
+        <div class="explain">
+          <span class="en">The full training set. Sentences that start with your words stay bright, and the word each one continues with is underlined in green. A count appears when a generated sentence reproduces one exactly.</span>
+          <span class="ko">학습 데이터 전체입니다. 입력한 단어로 시작하는 문장은 밝게 남고, 각 문장에서 이어지는 다음 단어에는 초록 밑줄이 그어집니다. 생성된 문장이 학습 문장과 완전히 같으면 횟수가 표시됩니다.</span>
+        </div>
+        <ol class="corpus" id="corpus"></ol>
+      </div>
+    </aside>
+  </div>
+
+  <section class="wide" style="margin-top:2.5rem">
+    <div class="prose">
+      <span class="label"><span class="en">Why it memorizes</span><span class="ko">왜 외우는가</span></span>
+      <p><span class="en">With 36 sentences and most words seen only once, the cheapest way to lower the loss is to store each sentence. Once a prefix matches a single training sentence, the next word is close to 100%. Uncertainty survives only where several sentences share a start, such as the 19 sentences that begin with <code>the</code>. That shared uncertainty is why the training loss settles near 0.42 instead of 0.</span><span class="ko">문장이 36개뿐이고 대부분의 단어가 한 번씩만 나오기 때문에, 손실을 줄이는 가장 쉬운 방법은 문장을 통째로 기억하는 것입니다. 앞부분이 학습 문장 하나와만 일치하면 다음 단어 확률은 거의 100%가 됩니다. 여러 문장이 같은 단어로 시작하는 곳(예: <code>the</code>로 시작하는 19개 문장)에서만 불확실성이 남고, 그래서 학습 손실이 0이 아니라 0.42 근처에서 멈춥니다.</span></p>
+      <p class="muted" style="font-size:var(--s-sm)"><span class="en">The browser model is a JavaScript port of the NumPy forward pass (<code>docs/tinygpt-web.js</code>), loading float32 weights exported by <code>export_web.py</code>. Its logits match NumPy to a relative error of about 1e-7.</span><span class="ko">브라우저 모델은 NumPy 순전파를 JavaScript로 옮긴 것(<code>docs/tinygpt-web.js</code>)이며, <code>export_web.py</code>로 내보낸 float32 가중치를 씁니다. 로짓은 NumPy와 상대 오차 약 1e-7로 일치합니다.</span></p>
+    </div>
+  </section>
+</div>
+
+<script src="site.js"></script>
+<script src="model.js"></script>
+<script src="tinygpt-web.js"></script>
+<script>
+(function () {
+  "use strict";
+  var model = new TinyGPTWeb.Model(window.TINYGPT_MODEL);
+  var BOS = model.id["<BOS>"], EOS = model.id["<EOS>"];
+  var sentences = model.sentences.map(function (s) { return s.toLowerCase(); });
+  var hits = sentences.map(function () { return 0; });
+  var history = [];          // previous prompt values, for Undo
+  var TOPK = 8;
+
+  var $ = function (id) { return document.getElementById(id); };
+  var promptEl = $("prompt"), tempEl = $("temp");
+
+  $("vocab-count").textContent = model.V;
+  $("epoch-count").textContent = model.epoch;
+
+  function esc(s) { return s.replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
+  function bi(en, ko) { return '<span class="en">' + en + '</span><span class="ko">' + ko + '</span>'; }
+  function temp() { return parseFloat(tempEl.value); }
+  function words() { return promptEl.value.replace(/﻿/g, "").trim().toLowerCase().split(/\s+/).filter(Boolean); }
+
+  // sentence-starting words, as in generate.py
+  var firsts = Array.from(new Set(sentences.map(function (s) { return s.split(" ")[0]; }))).sort();
+  var chips = $("chips");
+  firsts.forEach(function (w) {
+    var b = document.createElement("button");
+    b.type = "button"; b.className = "chip"; b.textContent = w;
+    b.addEventListener("click", function () { setPrompt(w); });
+    chips.appendChild(b);
+  });
+
+  // corpus list
+  var corpusEl = $("corpus");
+  sentences.forEach(function (s, i) {
+    var li = document.createElement("li");
+    li.innerHTML = '<span class="n">' + (i + 1) + '</span><span class="t"></span><span class="hits"></span>';
+    corpusEl.appendChild(li);
+  });
+
+  function setPrompt(v) {
+    history.push(promptEl.value);
+    promptEl.value = v;
+    clearSamples();
+    render();
+  }
+
+  function clearSamples() {
+    $("samples").innerHTML = "";
+    $("samples-empty").hidden = false;
+    $("summary").innerHTML = "";
+  }
+
+  // which training sentences start with the prompt words, and the word that follows in each
+  function matchesFor(ws) {
+    var out = [];
+    sentences.forEach(function (s, i) {
+      var sw = s.split(" ");
+      if (ws.length > sw.length) return;
+      for (var k = 0; k < ws.length; k++) if (sw[k] !== ws[k]) return;
+      out.push({ i: i, next: ws.length < sw.length ? sw[ws.length] : "<EOS>" });
+    });
+    return out;
+  }
+
+  function render() {
+    var ws = words();
+    var unknown = ws.filter(function (w) { return !(w in model.id) || w.charAt(0) === "<"; });
+    var msg = $("msg");
+    var ok = unknown.length === 0;
+    if (!ok) {
+      msg.hidden = false;
+      msg.innerHTML = bi(
+        "Not in the training sentences: " + unknown.map(function (w) { return "<b>" + esc(w) + "</b>"; }).join(", ") + ". It only knows " + model.V + " words; try one of the starting words below the box.",
+        "학습 문장에 없는 단어: " + unknown.map(function (w) { return "<b>" + esc(w) + "</b>"; }).join(", ") + ". 이 모델은 " + model.V + "개 단어만 압니다. 입력창 아래 시작 단어를 눌러 보세요."
+      );
+    } else msg.hidden = true;
+
+    $("gen-btn").disabled = !ok;
+    $("sample-btn").disabled = !ok;
+    $("undo-btn").disabled = history.length === 0;
+
+    var matches = ok ? matchesFor(ws) : [];
+    renderCorpus(ws, matches, ok);
+
+    var sofar = $("sofar");
+    var html = '<span class="tok bos">&lt;BOS&gt;</span>';
+    ws.forEach(function (w) { html += '<span class="tok' + (ok ? "" : "") + '">' + esc(w) + "</span>"; });
+    sofar.innerHTML = html;
+
+    var bars = $("bars");
+    if (!ok) { bars.innerHTML = ""; $("rest").textContent = ""; return; }
+    var ids = [BOS].concat(ws.map(function (w) { return model.id[w]; }));
+    var probs = model.next(ids, temp()).probs;
+    var order = Array.from(probs.keys()).sort(function (a, b) { return probs[b] - probs[a]; }).slice(0, TOPK);
+    var seenNext = {};
+    matches.forEach(function (m) { seenNext[m.next] = true; });
+    var shown = 0;
+    bars.innerHTML = "";
+    order.forEach(function (id) {
+      var tok = model.vocab[id], p = probs[id];
+      shown += p;
+      var b = document.createElement("button");
+      b.type = "button"; b.className = "bar-btn";
+      var label = tok === "<EOS>" ? bi("end of sentence", "문장 끝") : esc(tok);
+      b.innerHTML = '<span class="bar-word"><span class="seen' + (seenNext[tok] ? "" : " no") + '"></span>' + label + '</span>' +
+        '<span class="bar-track"><span class="bar-fill" style="width:' + (p * 100).toFixed(2) + '%"></span></span>' +
+        '<span class="bar-pct">' + fmtPct(p) + "</span>";
+      if (tok === "<EOS>" || tok === "<BOS>" || tok === "<UNK>") b.disabled = true;
+      else b.addEventListener("click", function () { setPrompt((ws.concat([tok])).join(" ")); });
+      bars.appendChild(b);
+    });
+    var rest = Math.max(0, 1 - shown);
+    $("rest").innerHTML = bi("Other " + (model.V - TOPK) + " words: " + fmtPct(rest), "나머지 " + (model.V - TOPK) + "개 단어: " + fmtPct(rest));
+  }
+
+  function fmtPct(p) {
+    if (p >= 0.995) return "100%";
+    if (p >= 0.1) return (p * 100).toFixed(0) + "%";
+    if (p >= 0.001) return (p * 100).toFixed(1) + "%";
+    return "<0.1%";
+  }
+
+  function renderCorpus(ws, matches, ok) {
+    var byIdx = {};
+    matches.forEach(function (m) { byIdx[m.i] = m; });
+    var lis = corpusEl.children;
+    sentences.forEach(function (s, i) {
+      var li = lis[i], sw = s.split(" "), m = byIdx[i];
+      var isOn = !ok || ws.length === 0 || !!m;
+      li.classList.toggle("off", !isOn);
+      var t = li.querySelector(".t");
+      if (m && ws.length) {
+        var head = sw.slice(0, ws.length).join(" ");
+        var nx = sw[ws.length];
+        var tail = sw.slice(ws.length + 1).join(" ");
+        t.innerHTML = "<mark>" + esc(head) + "</mark>" + (nx ? ' <span class="nx">' + esc(nx) + "</span>" : "") + (tail ? " " + esc(tail) : "");
+      } else t.textContent = s;
+      li.querySelector(".hits").textContent = hits[i] ? "✓ ×" + hits[i] : "";
+    });
+    $("match-count").innerHTML = ok && ws.length
+      ? bi("<b>" + matches.length + "</b> of " + sentences.length + " start this way", sentences.length + "개 중 <b>" + matches.length + "</b>개가 이렇게 시작")
+      : bi("<b>" + sentences.length + "</b> sentences", "<b>" + sentences.length + "</b>개 문장");
+  }
+
+  function generate() {
+    var ws = words();
+    var ids = [BOS].concat(ws.map(function (w) { return model.id[w]; }));
+    var counts = {}, order = [];
+    for (var n = 0; n < 5; n++) {
+      var s = model.decode(model.generate(ids, temp()));
+      if (!(s in counts)) { counts[s] = 0; order.push(s); }
+      counts[s]++;
+    }
+    var ul = $("samples");
+    ul.innerHTML = "";
+    var nTrain = 0, nNew = 0, flashed = [];
+    order.forEach(function (s) {
+      var idx = sentences.indexOf(s);
+      var li = document.createElement("li");
+      var sw = s.split(" ");
+      var pre = sw.slice(0, ws.length).join(" "), post = sw.slice(ws.length).join(" ");
+      var tag = idx >= 0
+        ? '<span class="tag train">' + bi("training sentence #" + (idx + 1), "학습 문장 #" + (idx + 1)) + "</span>"
+        : '<span class="tag new">' + bi("new combination", "새로운 조합") + "</span>";
+      li.innerHTML = '<span class="s"><span class="pre">' + esc(pre) + "</span> " + esc(post) +
+        (counts[s] > 1 ? ' <span class="muted">×' + counts[s] + "</span>" : "") + "</span>" + tag;
+      ul.appendChild(li);
+      if (idx >= 0) { hits[idx] += counts[s]; nTrain += counts[s]; flashed.push(idx); } else nNew += counts[s];
+    });
+    $("samples-empty").hidden = true;
+    $("summary").innerHTML = bi("<b>" + nTrain + "</b> of 5 copied from training", "5개 중 <b>" + nTrain + "</b>개가 학습 문장 그대로");
+    render();
+    flashed.forEach(function (i) {
+      var li = corpusEl.children[i];
+      li.classList.remove("flash"); void li.offsetWidth; li.classList.add("flash");
+      setTimeout(function () { li.classList.remove("flash"); }, 1600);
+    });
+  }
+
+  $("gen-btn").addEventListener("click", generate);
+  $("sample-btn").addEventListener("click", function () {
+    var ws = words();
+    var ids = [BOS].concat(ws.map(function (w) { return model.id[w]; }));
+    var nx = model.sample(model.next(ids, temp()).probs);
+    if (nx === EOS) {
+      var s = model.decode(ids), idx = sentences.indexOf(s);
+      var ul = $("samples"), li = document.createElement("li");
+      li.innerHTML = '<span class="s">' + esc(s) + "</span>" + (idx >= 0
+        ? '<span class="tag train">' + bi("training sentence #" + (idx + 1), "학습 문장 #" + (idx + 1)) + "</span>"
+        : '<span class="tag new">' + bi("new combination", "새로운 조합") + "</span>");
+      ul.insertBefore(li, ul.firstChild);
+      $("samples-empty").hidden = true;
+      if (idx >= 0) { hits[idx]++; render(); }
+      return;
+    }
+    setPrompt(ws.concat([model.vocab[nx]]).join(" "));
+  });
+  $("undo-btn").addEventListener("click", function () {
+    if (!history.length) return;
+    promptEl.value = history.pop();
+    clearSamples();
+    render();
+  });
+  promptEl.addEventListener("input", function () { clearSamples(); render(); });
+  promptEl.addEventListener("keydown", function (e) { if (e.key === "Enter" && !$("gen-btn").disabled) generate(); });
+  tempEl.addEventListener("input", function () { $("temp-out").textContent = temp().toFixed(1); render(); });
+
+  render();
+})();
+</script>
+</body>
+</html>
